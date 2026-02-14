@@ -6,7 +6,7 @@ Kinderfreundliche Schreiblern-App mit:
 - dynamischer Buchstaben-Auswahl aus der JSON-Datei (keine hardcodierten Buchstaben)
 - zufälliger Wortreihenfolge
 - deutscher Sprachausgabe
-- Prüfung auf exakte Schreibweise inkl. Groß-/Kleinschreibung
+- Prüfung auf exakte Schreibweise inkl. Gross-/Kleinschreibung
 - Korrekturmodus mit Fehleranzeige
 - Münzsystem + Tetris-Bonusspiel
 

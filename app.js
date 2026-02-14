@@ -250,12 +250,16 @@ function sanitizeWords(words) {
   if (!Array.isArray(words)) return [];
   const result = [];
   for (const word of words) {
-    const cleanWord = String(word ?? "").trim();
+    const cleanWord = normalizeDoubleS(String(word ?? "").trim());
     if (cleanWord) {
       result.push(cleanWord);
     }
   }
   return result;
+}
+
+function normalizeDoubleS(value) {
+  return value.replaceAll("\u00DF", "ss").replaceAll("\u1E9E", "SS");
 }
 
 function populateLetterGroupOptions() {
@@ -365,7 +369,7 @@ function submitCurrentAnswer() {
     return;
   }
 
-  const userInput = els.wordInput.value.trim();
+  const userInput = normalizeDoubleS(els.wordInput.value.trim());
   if (!userInput) {
     setFeedback(els.quizFeedback, "Bitte erst ein Wort eingeben.", "bad");
     return;
@@ -420,7 +424,7 @@ function finishQuiz() {
 }
 
 function getRating(percent) {
-  if (percent >= 95) return "Galaxie-Großmeister";
+  if (percent >= 95) return "Galaxie-Grossmeister";
   if (percent >= 80) return "Wort-Held";
   if (percent >= 60) return "Starker Schreiber";
   return "Lern-Entdecker";
@@ -460,7 +464,7 @@ function renderMistakes() {
     row.className = "mistake-item";
     row.dataset.answerIndex = String(mistake.index);
     const detail = mistake.caseOnlyError
-      ? "Buchstaben stimmen, aber Groß-/Kleinschreibung ist falsch."
+      ? "Buchstaben stimmen, aber Gross-/Kleinschreibung ist falsch."
       : "Die Schreibweise ist falsch.";
 
     row.innerHTML = `
@@ -495,7 +499,7 @@ function checkCorrections() {
       continue;
     }
 
-    const proposed = correctionInput.value.trim();
+    const proposed = normalizeDoubleS(correctionInput.value.trim());
     const target = state.answers[answerIndex]?.target;
     if (!target || proposed !== target) {
       if (target) {
@@ -629,7 +633,7 @@ function startTetrisGame() {
   state.tetris.active = true;
   state.tetris.paused = false;
   state.tetris.lastDropMs = performance.now();
-  setFeedback(els.miniGameFeedback, "Tetris gestartet. Viel Spaß!", "ok");
+  setFeedback(els.miniGameFeedback, "Tetris gestartet. Viel Spass!", "ok");
   playSfx("start");
   state.tetris.rafId = requestAnimationFrame(runTetrisFrame);
 }
