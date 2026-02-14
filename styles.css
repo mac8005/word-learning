@@ -229,7 +229,7 @@ select:focus {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .result-highlight {
@@ -277,18 +277,58 @@ select:focus {
   color: #334155;
 }
 
-.mini-stats {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 900;
+/* ─── Arcade card on main page ─── */
+
+.arcade-card {
+  background: linear-gradient(140deg, #1e1b4b, #312e81, #1e1b4b);
+  border: 2px solid #6366f1;
+  color: #e0e7ff;
 }
 
-.mini-shop {
+.arcade-card h2 {
+  color: #c7d2fe;
+}
+
+.arcade-card .small-note {
+  color: #a5b4fc;
+}
+
+.arcade-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.75rem;
+}
+
+.arcade-actions {
+  display: flex;
+  gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.arcade-buy {
+  background: linear-gradient(130deg, #fde047, #fb923c);
+  color: #4a2c00;
+}
+
+.arcade-play {
+  background: linear-gradient(130deg, #818cf8, #6366f1);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.arcade-play::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .ticket-badge {
@@ -297,22 +337,301 @@ select:focus {
   padding: 0.5rem 0.7rem;
   border-radius: 999px;
   font-weight: 900;
+  white-space: nowrap;
+}
+
+.coin-inline {
+  background: linear-gradient(130deg, #fde047, #fb923c);
+  color: #4a2c00;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.ticket-inline {
+  background: linear-gradient(130deg, #fecaca, #fcd34d);
+  color: #4a2c00;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+/* ─── Tetris Modal ─── */
+
+.tetris-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tetris-modal {
+  background: linear-gradient(160deg, #0f0a2e, #1a1145, #0c0826);
+  border: 2px solid #6366f1;
+  border-radius: 1.5rem;
+  box-shadow:
+    0 0 40px rgba(99, 102, 241, 0.3),
+    0 0 80px rgba(99, 102, 241, 0.1),
+    0 25px 60px rgba(0, 0, 0, 0.5);
+  width: min(580px, 96vw);
+  max-height: 96vh;
+  overflow-y: auto;
+  color: #e0e7ff;
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.tetris-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.tetris-modal-title {
+  font-family: "Baloo 2", cursive;
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(90deg, #c7d2fe, #818cf8, #c084fc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  flex-shrink: 0;
+}
+
+.tetris-modal-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.tetris-badge {
+  font-size: 0.85rem;
+}
+
+.tetris-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #a5b4fc;
+  font-size: 1.6rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.tetris-close-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.tetris-modal-body {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.tetris-stage {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.tetris-stats-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 90px;
+}
+
+.tetris-stat-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.6rem;
+  text-align: center;
+}
+
+.tetris-stat-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #818cf8;
+  font-weight: 700;
+}
+
+.tetris-stat-value {
+  display: block;
+  font-family: "Baloo 2", cursive;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #e0e7ff;
+}
+
+.next-piece-box {
+  padding: 0.4rem;
+}
+
+.next-piece-canvas {
+  display: block;
+  margin: 0.25rem auto 0;
+  width: 72px;
+  height: 72px;
+  border-radius: 0.4rem;
+  background: rgba(2, 6, 23, 0.5);
+}
+
+.tetris-canvas-wrapper {
+  position: relative;
 }
 
 .tetris-canvas {
-  width: 100%;
-  max-width: 300px;
-  align-self: center;
+  display: block;
   border-radius: 0.8rem;
-  border: 2px solid #334155;
+  border: 2px solid #4338ca;
   background: linear-gradient(180deg, #020617, #1e293b);
+  width: 240px;
+  height: 480px;
+}
+
+.tetris-glow {
+  position: absolute;
+  inset: -6px;
+  border-radius: 1rem;
+  background: transparent;
+  box-shadow:
+    0 0 20px rgba(99, 102, 241, 0.25),
+    0 0 50px rgba(99, 102, 241, 0.08);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .tetris-controls {
   display: flex;
   gap: 0.6rem;
-  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
 }
+
+.tetris-btn-start {
+  background: linear-gradient(130deg, #22c55e, #16a34a);
+  color: white;
+  padding: 0.65rem 1.6rem;
+  font-size: 1.05rem;
+}
+
+.tetris-btn-pause {
+  background: linear-gradient(130deg, #475569, #64748b);
+  color: white;
+  padding: 0.65rem 1.2rem;
+}
+
+.tetris-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6366f1;
+  text-align: center;
+}
+
+/* ─── Touch controls ─── */
+
+.touch-controls {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.touch-row {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.touch-btn {
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 1rem;
+  border: 2px solid rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.15);
+  color: #c7d2fe;
+  font-size: 1.5rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.touch-btn:active {
+  background: rgba(99, 102, 241, 0.4);
+  transform: scale(0.92);
+}
+
+.touch-drop {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.touch-drop:active {
+  background: rgba(239, 68, 68, 0.45);
+}
+
+.tetris-feedback {
+  text-align: center;
+  width: 100%;
+}
+
+.tetris-feedback.ok {
+  color: #4ade80;
+}
+
+.tetris-feedback.bad {
+  color: #fb7185;
+}
+
+/* ─── Celebration ─── */
 
 .celebration {
   pointer-events: none;
@@ -331,6 +650,16 @@ select:focus {
   }
 }
 
+/* ─── Body scroll lock when modal is open ─── */
+
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* ─── Responsive ─── */
+
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
@@ -343,5 +672,95 @@ select:focus {
   .hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* Touch devices: show touch controls, hide keyboard hint */
+@media (hover: none) and (pointer: coarse) {
+  .touch-controls {
+    display: flex;
+  }
+
+  .tetris-hint-keyboard {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Fullscreen modal on small screens */
+  .tetris-modal-backdrop {
+    padding: 0;
+  }
+
+  .tetris-modal {
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .tetris-modal-body {
+    padding: 0.6rem 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+
+  .tetris-modal-header {
+    flex-wrap: wrap;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .tetris-stage {
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .tetris-stats-col {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-width: unset;
+    gap: 0.35rem;
+  }
+
+  .tetris-stat-box {
+    flex: 1;
+    min-width: 55px;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .tetris-stat-value {
+    font-size: 1.1rem;
+  }
+
+  .next-piece-box {
+    flex: unset;
+  }
+
+  .next-piece-canvas {
+    width: 52px;
+    height: 52px;
+  }
+
+  .tetris-canvas {
+    width: 200px;
+    height: 400px;
+  }
+
+  .tetris-controls {
+    gap: 0.4rem;
+  }
+
+  .tetris-btn-start,
+  .tetris-btn-pause {
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  .touch-btn {
+    width: 3.2rem;
+    height: 3.2rem;
+    font-size: 1.3rem;
   }
 }
