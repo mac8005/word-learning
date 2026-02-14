@@ -280,7 +280,16 @@ select:focus {
 .mini-stats {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.3rem;
   font-weight: 900;
+}
+
+.coin-inline {
+  background: linear-gradient(130deg, #fde047, #fb923c);
+  color: #4a2c00;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
 }
 
 .mini-shop {

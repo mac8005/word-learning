@@ -2,7 +2,7 @@ const WORDS_URL_CANDIDATES = ["words.json", "data/words.json"];
 const COIN_STORAGE_KEY = "word_galaxy_coins";
 const TETRIS_PLAYS_STORAGE_KEY = "word_galaxy_tetris_plays";
 const TETRIS_PLAY_BUNDLE_COST = 20;
-const TETRIS_PLAY_BUNDLE_AMOUNT = 2;
+const TETRIS_PLAY_BUNDLE_AMOUNT = 1;
 const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
@@ -111,6 +111,7 @@ const els = {
   tetrisScore: document.getElementById("tetrisScore"),
   tetrisLines: document.getElementById("tetrisLines"),
   tetrisLevel: document.getElementById("tetrisLevel"),
+  tetrisCoins: document.getElementById("tetrisCoins"),
   tetrisCanvas: document.getElementById("tetrisCanvas"),
   startMiniGameBtn: document.getElementById("startMiniGameBtn"),
   pauseMiniGameBtn: document.getElementById("pauseMiniGameBtn"),
@@ -406,9 +407,7 @@ function finishQuiz() {
   const percent = Math.round((correctCount / total) * 100);
   const rating = getRating(percent);
 
-  const baseCoins = correctCount * 3;
-  const performanceBonus = percent >= 90 ? 14 : percent >= 70 ? 8 : 3;
-  const earnedCoins = baseCoins + performanceBonus;
+  const earnedCoins = Math.round(20 * correctCount / total);
   addCoins(earnedCoins);
 
   els.ratingLabel.textContent = rating;
@@ -526,10 +525,10 @@ function checkCorrections() {
   }
 
   if (!state.correctionBonusGiven) {
-    const bonus = rows.length * 2 + 6;
+    const bonus = 2;
     addCoins(bonus);
     state.correctionBonusGiven = true;
-    setFeedback(els.correctionFeedback, `Alles korrigiert. +${bonus} Bonus-Münzen!`, "ok");
+    setFeedback(els.correctionFeedback, `Alles korrigiert! +${bonus} Bonus-Münzen.`, "ok");
     spawnCelebration();
     return;
   }
@@ -562,6 +561,7 @@ function addCoins(delta) {
 
 function updateCoinDisplay() {
   els.coinCount.textContent = String(state.coins);
+  els.tetrisCoins.textContent = `Münzen: ${state.coins}`;
 }
 
 function loadTetrisPlays() {
@@ -604,7 +604,7 @@ function buyTetrisPlays() {
   updateTetrisPlayDisplay();
   setFeedback(
     els.miniGameFeedback,
-    `${TETRIS_PLAY_BUNDLE_AMOUNT} Tetris-Spiele gekauft. Starte manuell, wenn du bereit bist.`,
+    `1 Tetris-Spiel gekauft (−${TETRIS_PLAY_BUNDLE_COST} Münzen). Verbleibend: ${state.coins} Münzen.`,
     "ok"
   );
   playSfx("buy");
@@ -619,7 +619,7 @@ function startTetrisGame() {
   if (state.tetrisPlays < 1) {
     setFeedback(
       els.miniGameFeedback,
-      "Keine Spiele übrig. Kaufe 2 Spiele für 20 Münzen.",
+      "Keine Spiele übrig. Kaufe 1 Spiel für 20 Münzen.",
       "bad"
     );
     playSfx("error");
@@ -872,14 +872,9 @@ function endTetrisGame() {
   cancelAnimationFrame(state.tetris.rafId);
   drawTetris("ENDE");
 
-  const lineReward = state.tetris.lines * 2;
-  const scoreReward = Math.floor(state.tetris.score / 180);
-  const reward = Math.max(3, lineReward + scoreReward);
-  addCoins(reward);
-
   setFeedback(
     els.miniGameFeedback,
-    `Tetris vorbei. Punkte: ${state.tetris.score}, Linien: ${state.tetris.lines}, Belohnung: +${reward} Münzen.`,
+    `Tetris vorbei! Punkte: ${state.tetris.score}, Linien: ${state.tetris.lines}. Trainiere Wörter für neue Spiele!`,
     "ok"
   );
 
