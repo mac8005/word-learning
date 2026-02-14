@@ -110,6 +110,7 @@ const els = {
   tetrisPlays: document.getElementById("tetrisPlays"),
   tetrisScore: document.getElementById("tetrisScore"),
   tetrisLines: document.getElementById("tetrisLines"),
+  tetrisLevel: document.getElementById("tetrisLevel"),
   tetrisCanvas: document.getElementById("tetrisCanvas"),
   startMiniGameBtn: document.getElementById("startMiniGameBtn"),
   pauseMiniGameBtn: document.getElementById("pauseMiniGameBtn"),
@@ -855,7 +856,13 @@ function clearLines() {
   state.tetris.score += (pointsByLines[cleared] ?? 0) * state.tetris.level;
   state.tetris.lines += cleared;
   state.tetris.level = 1 + Math.floor(state.tetris.lines / 10);
-  state.tetris.dropMs = Math.max(120, BASE_DROP_MS - (state.tetris.level - 1) * 55);
+  // Classic Tetris speed curve: gets noticeably faster each level
+  const LEVEL_SPEEDS = [
+    700, 620, 550, 470, 380, 300, 220, 170, 130, 100,
+     80,  80,  80,  70,  70,  70,  50,  50,  50,  30,
+  ];
+  const lvl = state.tetris.level;
+  state.tetris.dropMs = LEVEL_SPEEDS[Math.min(lvl - 1, LEVEL_SPEEDS.length - 1)] ?? 30;
   return cleared;
 }
 
@@ -885,6 +892,7 @@ function endTetrisGame() {
 function updateTetrisStats() {
   els.tetrisScore.textContent = `Punkte: ${state.tetris.score}`;
   els.tetrisLines.textContent = `Linien: ${state.tetris.lines}`;
+  els.tetrisLevel.textContent = `Level: ${state.tetris.level}`;
 }
 
 function drawTetris(overlayText = "") {
