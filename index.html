@@ -89,38 +89,77 @@
           <button id="playAgainBtn" class="btn secondary">Neues Set spielen</button>
         </section>
 
-        <section class="card panel" id="miniGamePanel">
-          <h2>Bonus-Spiel: Tetris</h2>
-          <p class="small-note">
-            20 Münzen = 1 Spiel. Tetris startet nur, wenn du auf Start klickst.
-          </p>
-          <div class="mini-shop">
-            <button id="buyTetrisPlaysBtn" class="btn secondary">
-              1 Spiel für 20 Münzen kaufen
-            </button>
+        <section class="card panel arcade-card" id="miniGamePanel">
+          <div class="arcade-header">
+            <h2>Bonus-Spiel: Tetris</h2>
             <span class="ticket-badge">Spiele: <strong id="tetrisPlays">0</strong></span>
           </div>
-          <div class="mini-stats">
-            <span id="tetrisScore">Punkte: 0</span>
-            <span id="tetrisLines">Linien: 0</span>
-            <span id="tetrisLevel">Level: 1</span>
-            <span id="tetrisCoins" class="coin-inline">Münzen: 0</span>
+          <p class="small-note">
+            Trainiere Wörter, sammle 20 Münzen und spiele 1 Runde Tetris.
+          </p>
+          <div class="arcade-actions">
+            <button id="buyTetrisPlaysBtn" class="btn arcade-buy">
+              1 Spiel für 20 Münzen kaufen
+            </button>
+            <button id="openTetrisBtn" class="btn arcade-play">
+              Tetris öffnen
+            </button>
           </div>
-          <canvas
-            id="tetrisCanvas"
-            class="tetris-canvas"
-            width="240"
-            height="480"
-            aria-label="Tetris Spielfeld"
-          ></canvas>
-          <div class="tetris-controls">
-            <button id="startMiniGameBtn" class="btn primary">Tetris starten (1 Spiel)</button>
-            <button id="pauseMiniGameBtn" class="btn secondary">Pause</button>
-          </div>
-          <p class="small-note">Steuerung: ← → bewegen, ↑ drehen, ↓ schneller, Leertaste fallen.</p>
           <p id="miniGameFeedback" class="feedback"></p>
         </section>
       </main>
+    </div>
+
+    <!-- Tetris Modal -->
+    <div class="tetris-modal-backdrop hidden" id="tetrisModalBackdrop">
+      <div class="tetris-modal" id="tetrisModal">
+        <div class="tetris-modal-header">
+          <h2 class="tetris-modal-title">Tetris</h2>
+          <div class="tetris-modal-badges">
+            <span class="tetris-badge coin-inline" id="tetrisCoins">Münzen: 0</span>
+            <span class="tetris-badge ticket-inline">Spiele: <strong id="tetrisPlaysModal">0</strong></span>
+          </div>
+          <button class="tetris-close-btn" id="closeTetrisBtn" aria-label="Schliessen">&times;</button>
+        </div>
+        <div class="tetris-modal-body">
+          <div class="tetris-stage">
+            <div class="tetris-stats-col">
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Punkte</span>
+                <span class="tetris-stat-value" id="tetrisScore">0</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Linien</span>
+                <span class="tetris-stat-value" id="tetrisLines">0</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Level</span>
+                <span class="tetris-stat-value" id="tetrisLevel">1</span>
+              </div>
+              <div class="tetris-stat-box next-piece-box">
+                <span class="tetris-stat-label">Nächstes</span>
+                <canvas id="nextPieceCanvas" class="next-piece-canvas" width="96" height="96"></canvas>
+              </div>
+            </div>
+            <div class="tetris-canvas-wrapper">
+              <canvas
+                id="tetrisCanvas"
+                class="tetris-canvas"
+                width="240"
+                height="480"
+                aria-label="Tetris Spielfeld"
+              ></canvas>
+              <div class="tetris-glow"></div>
+            </div>
+          </div>
+          <div class="tetris-controls">
+            <button id="startMiniGameBtn" class="btn tetris-btn-start">Tetris starten</button>
+            <button id="pauseMiniGameBtn" class="btn tetris-btn-pause">Pause</button>
+          </div>
+          <p class="tetris-hint">← → bewegen &middot; ↑ drehen &middot; ↓ schneller &middot; Leertaste fallen</p>
+          <p id="tetrisModalFeedback" class="feedback tetris-feedback"></p>
+        </div>
+      </div>
     </div>
 
     <script src="app.js"></script>

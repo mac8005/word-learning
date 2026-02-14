@@ -107,18 +107,26 @@ const els = {
   playAgainBtn: document.getElementById("playAgainBtn"),
   coinCount: document.getElementById("coinCount"),
   buyTetrisPlaysBtn: document.getElementById("buyTetrisPlaysBtn"),
+  openTetrisBtn: document.getElementById("openTetrisBtn"),
   tetrisPlays: document.getElementById("tetrisPlays"),
+  miniGameFeedback: document.getElementById("miniGameFeedback"),
+  // Modal elements
+  tetrisModalBackdrop: document.getElementById("tetrisModalBackdrop"),
+  closeTetrisBtn: document.getElementById("closeTetrisBtn"),
+  tetrisCoins: document.getElementById("tetrisCoins"),
+  tetrisPlaysModal: document.getElementById("tetrisPlaysModal"),
   tetrisScore: document.getElementById("tetrisScore"),
   tetrisLines: document.getElementById("tetrisLines"),
   tetrisLevel: document.getElementById("tetrisLevel"),
-  tetrisCoins: document.getElementById("tetrisCoins"),
   tetrisCanvas: document.getElementById("tetrisCanvas"),
+  nextPieceCanvas: document.getElementById("nextPieceCanvas"),
   startMiniGameBtn: document.getElementById("startMiniGameBtn"),
   pauseMiniGameBtn: document.getElementById("pauseMiniGameBtn"),
-  miniGameFeedback: document.getElementById("miniGameFeedback"),
+  tetrisModalFeedback: document.getElementById("tetrisModalFeedback"),
 };
 
 const tetrisCtx = els.tetrisCanvas.getContext("2d");
+const nextCtx = els.nextPieceCanvas.getContext("2d");
 
 initialize();
 
@@ -168,11 +176,48 @@ function bindEvents() {
   els.playAgainBtn.addEventListener("click", resetToSetup);
 
   els.buyTetrisPlaysBtn.addEventListener("click", buyTetrisPlays);
+  els.openTetrisBtn.addEventListener("click", openTetrisModal);
+  els.closeTetrisBtn.addEventListener("click", closeTetrisModal);
   els.startMiniGameBtn.addEventListener("click", startTetrisGame);
   els.pauseMiniGameBtn.addEventListener("click", toggleTetrisPause);
 
+  els.tetrisModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === els.tetrisModalBackdrop && !state.tetris.active) {
+      closeTetrisModal();
+    }
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.tetrisModalBackdrop.classList.contains("hidden")) {
+      if (!state.tetris.active) {
+        closeTetrisModal();
+      }
+    }
+  });
+
   window.addEventListener("keydown", handleTetrisKeyDown);
 }
+
+// ─── Modal ───
+
+function openTetrisModal() {
+  els.tetrisModalBackdrop.classList.remove("hidden");
+  updateCoinDisplay();
+  updateTetrisPlayDisplay();
+  drawTetris(state.tetris.active ? "" : "TETRIS");
+  drawNextPiece();
+  setFeedback(els.tetrisModalFeedback, "", "ok");
+}
+
+function closeTetrisModal() {
+  if (state.tetris.active) {
+    setFeedback(els.tetrisModalFeedback, "Beende erst das Spiel.", "bad");
+    return;
+  }
+  els.tetrisModalBackdrop.classList.add("hidden");
+}
+
+// ─── Speech ───
 
 function setupSpeechVoices() {
   if (!("speechSynthesis" in window)) {
@@ -193,6 +238,8 @@ function setupSpeechVoices() {
     window.speechSynthesis.addEventListener("voiceschanged", assignVoice);
   }
 }
+
+// ─── Word loading ───
 
 async function loadWords() {
   let loadedFrom = null;
@@ -281,6 +328,8 @@ function populateLetterGroupOptions() {
 
   els.letterGroup.value = "all";
 }
+
+// ─── Quiz ───
 
 function startQuiz() {
   const letterGroup = els.letterGroup.value;
@@ -548,6 +597,8 @@ function setPanelVisibility({ setup, quiz, result }) {
   els.resultPanel.classList.toggle("hidden", !result);
 }
 
+// ─── Coins & plays ───
+
 function loadCoins() {
   const parsed = Number.parseInt(window.localStorage.getItem(COIN_STORAGE_KEY) ?? "0", 10);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
@@ -578,6 +629,7 @@ function saveTetrisPlays() {
 
 function updateTetrisPlayDisplay() {
   els.tetrisPlays.textContent = String(state.tetrisPlays);
+  els.tetrisPlaysModal.textContent = String(state.tetrisPlays);
 }
 
 function setFeedback(el, text, type) {
@@ -586,6 +638,8 @@ function setFeedback(el, text, type) {
   if (type === "ok") el.classList.add("ok");
   if (type === "bad") el.classList.add("bad");
 }
+
+// ─── Tetris shop ───
 
 function buyTetrisPlays() {
   if (state.coins < TETRIS_PLAY_BUNDLE_COST) {
@@ -610,15 +664,17 @@ function buyTetrisPlays() {
   playSfx("buy");
 }
 
+// ─── Tetris game ───
+
 function startTetrisGame() {
   if (state.tetris.active) {
-    setFeedback(els.miniGameFeedback, "Tetris läuft bereits.", "bad");
+    setFeedback(els.tetrisModalFeedback, "Tetris läuft bereits.", "bad");
     return;
   }
 
   if (state.tetrisPlays < 1) {
     setFeedback(
-      els.miniGameFeedback,
+      els.tetrisModalFeedback,
       "Keine Spiele übrig. Kaufe 1 Spiel für 20 Münzen.",
       "bad"
     );
@@ -634,7 +690,7 @@ function startTetrisGame() {
   state.tetris.active = true;
   state.tetris.paused = false;
   state.tetris.lastDropMs = performance.now();
-  setFeedback(els.miniGameFeedback, "Tetris gestartet. Viel Spass!", "ok");
+  setFeedback(els.tetrisModalFeedback, "Tetris gestartet. Viel Spass!", "ok");
   playSfx("start");
   state.tetris.rafId = requestAnimationFrame(runTetrisFrame);
 }
@@ -649,20 +705,21 @@ function initTetrisRound() {
   state.tetris.next = createRandomPiece();
   updateTetrisStats();
   drawTetris();
+  drawNextPiece();
 }
 
 function toggleTetrisPause() {
   if (!state.tetris.active) {
-    setFeedback(els.miniGameFeedback, "Starte zuerst eine Tetris-Runde.", "bad");
+    setFeedback(els.tetrisModalFeedback, "Starte zuerst eine Tetris-Runde.", "bad");
     return;
   }
 
   state.tetris.paused = !state.tetris.paused;
   if (state.tetris.paused) {
-    setFeedback(els.miniGameFeedback, "Tetris pausiert.", "ok");
+    setFeedback(els.tetrisModalFeedback, "Tetris pausiert.", "ok");
     drawTetris("PAUSE");
   } else {
-    setFeedback(els.miniGameFeedback, "Tetris läuft weiter.", "ok");
+    setFeedback(els.tetrisModalFeedback, "Tetris läuft weiter.", "ok");
     state.tetris.lastDropMs = performance.now();
     state.tetris.rafId = requestAnimationFrame(runTetrisFrame);
   }
@@ -826,6 +883,7 @@ function lockCurrentPiece() {
 
   state.tetris.current = state.tetris.next;
   state.tetris.next = createRandomPiece();
+  drawNextPiece();
 
   if (collides(state.tetris.current, state.tetris.current.shape, 0, 0)) {
     endTetrisGame();
@@ -873,7 +931,7 @@ function endTetrisGame() {
   drawTetris("ENDE");
 
   setFeedback(
-    els.miniGameFeedback,
+    els.tetrisModalFeedback,
     `Tetris vorbei! Punkte: ${state.tetris.score}, Linien: ${state.tetris.lines}. Trainiere Wörter für neue Spiele!`,
     "ok"
   );
@@ -884,10 +942,12 @@ function endTetrisGame() {
   playSfx("gameOver");
 }
 
+// ─── Tetris rendering ───
+
 function updateTetrisStats() {
-  els.tetrisScore.textContent = `Punkte: ${state.tetris.score}`;
-  els.tetrisLines.textContent = `Linien: ${state.tetris.lines}`;
-  els.tetrisLevel.textContent = `Level: ${state.tetris.level}`;
+  els.tetrisScore.textContent = String(state.tetris.score);
+  els.tetrisLines.textContent = String(state.tetris.lines);
+  els.tetrisLevel.textContent = String(state.tetris.level);
 }
 
 function drawTetris(overlayText = "") {
@@ -899,7 +959,7 @@ function drawTetris(overlayText = "") {
   tetrisCtx.fillRect(0, 0, els.tetrisCanvas.width, els.tetrisCanvas.height);
 
   drawBoard(cell);
-  drawPiece(state.tetris.current, cell);
+  drawPiece(state.tetris.current, cell, tetrisCtx);
   drawGrid(cell);
 
   if (overlayText) {
@@ -909,6 +969,39 @@ function drawTetris(overlayText = "") {
     tetrisCtx.font = "700 34px 'Baloo 2'";
     tetrisCtx.textAlign = "center";
     tetrisCtx.fillText(overlayText, els.tetrisCanvas.width / 2, els.tetrisCanvas.height / 2);
+  }
+}
+
+function drawNextPiece() {
+  const canvas = els.nextPieceCanvas;
+  const ctx = nextCtx;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "rgba(2, 6, 23, 0.5)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const piece = state.tetris.next;
+  if (!piece) return;
+
+  const cellSize = 20;
+  const shape = piece.shape;
+  const shapeW = shape[0].length * cellSize;
+  const shapeH = shape.length * cellSize;
+  const offsetX = Math.floor((canvas.width - shapeW) / 2);
+  const offsetY = Math.floor((canvas.height - shapeH) / 2);
+
+  for (let y = 0; y < shape.length; y += 1) {
+    for (let x = 0; x < shape[y].length; x += 1) {
+      if (!shape[y][x]) continue;
+      const px = offsetX + x * cellSize;
+      const py = offsetY + y * cellSize;
+      ctx.fillStyle = piece.color;
+      ctx.fillRect(px, py, cellSize, cellSize);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+      ctx.fillRect(px + 2, py + 2, cellSize - 4, cellSize / 3);
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.35)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+    }
   }
 }
 
@@ -922,7 +1015,7 @@ function drawBoard(cell) {
   }
 }
 
-function drawPiece(piece, cell) {
+function drawPiece(piece, cell, ctx) {
   if (!piece) return;
   for (let y = 0; y < piece.shape.length; y += 1) {
     for (let x = 0; x < piece.shape[y].length; x += 1) {
@@ -960,6 +1053,8 @@ function drawGrid(cell) {
     tetrisCtx.stroke();
   }
 }
+
+// ─── Audio ───
 
 function ensureAudio() {
   const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -1033,6 +1128,8 @@ function playSfx(name) {
     playTone(160, 0.12, { type: "sawtooth", gain: 0.018, delay: 0.19, endFrequency: 90 });
   }
 }
+
+// ─── Utilities ───
 
 function spawnCelebration() {
   const colors = ["#22c55e", "#eab308", "#f97316", "#3b82f6", "#ef4444"];
