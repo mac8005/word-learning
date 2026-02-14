@@ -1,4 +1,4 @@
-const WORDS_URL = "data/words.json";
+const WORDS_URL_CANDIDATES = ["words.json", "data/words.json"];
 const COIN_STORAGE_KEY = "word_galaxy_coins";
 const TETRIS_PLAYS_STORAGE_KEY = "word_galaxy_tetris_plays";
 const TETRIS_PLAY_BUNDLE_COST = 20;
@@ -6,6 +6,7 @@ const TETRIS_PLAY_BUNDLE_AMOUNT = 2;
 const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
+const SPEECH_RATE = 0.5;
 
 const SHAPES = {
   I: [
@@ -57,6 +58,7 @@ const PIECE_COLORS = {
 
 const state = {
   wordBank: {},
+  letterKeys: [],
   quizWords: [],
   answers: [],
   currentIndex: 0,
@@ -129,11 +131,15 @@ async function initialize() {
   drawTetris("TETRIS");
 
   els.startBtn.disabled = true;
+  els.letterGroup.disabled = true;
   els.startBtn.textContent = "Wörter laden...";
 
   try {
     state.wordBank = await loadWords();
+    state.letterKeys = Object.keys(state.wordBank).sort((a, b) => a.localeCompare(b, "de-DE"));
+    populateLetterGroupOptions();
     els.startBtn.disabled = false;
+    els.letterGroup.disabled = false;
     els.startBtn.textContent = "Mission starten";
     setFeedback(els.quizFeedback, "Drücke Start und höre genau zu.", "ok");
   } catch (error) {
@@ -187,16 +193,87 @@ function setupSpeechVoices() {
 }
 
 async function loadWords() {
-  const response = await fetch(WORDS_URL);
-  if (!response.ok) {
-    throw new Error(`Fehler beim Laden von ${WORDS_URL} (${response.status})`);
+  let loadedFrom = null;
+  let data = null;
+
+  for (const candidate of WORDS_URL_CANDIDATES) {
+    const response = await fetch(candidate);
+    if (!response.ok) {
+      continue;
+    }
+    loadedFrom = candidate;
+    data = await response.json();
+    break;
   }
-  const data = await response.json();
+
+  if (!data) {
+    throw new Error(`Fehler beim Laden der Wortdatei (${WORDS_URL_CANDIDATES.join(", ")})`);
+  }
+
+  console.log(`[Words] Konfiguration geladen aus: ${loadedFrom}`);
+  return normalizeWordConfig(data);
+}
+
+function normalizeWordConfig(data) {
   const bank = {};
-  for (const group of data.letters ?? []) {
-    bank[group.letter] = group.words;
+
+  if (Array.isArray(data?.letters)) {
+    for (const group of data.letters) {
+      const letter = String(group?.letter ?? "").trim();
+      const words = sanitizeWords(group?.words);
+      if (!letter || !words.length) continue;
+      bank[letter] = words;
+    }
+  } else if (data?.letters && typeof data.letters === "object") {
+    for (const [letter, words] of Object.entries(data.letters)) {
+      const cleanLetter = String(letter).trim();
+      const cleanWords = sanitizeWords(words);
+      if (!cleanLetter || !cleanWords.length) continue;
+      bank[cleanLetter] = cleanWords;
+    }
+  } else if (data && typeof data === "object") {
+    for (const [letter, words] of Object.entries(data)) {
+      const cleanLetter = String(letter).trim();
+      const cleanWords = sanitizeWords(words);
+      if (!cleanLetter || !cleanWords.length) continue;
+      bank[cleanLetter] = cleanWords;
+    }
+  }
+
+  if (!Object.keys(bank).length) {
+    throw new Error("Die Wortdatei enthält keine gültigen Buchstabengruppen.");
   }
   return bank;
+}
+
+function sanitizeWords(words) {
+  if (!Array.isArray(words)) return [];
+  const result = [];
+  for (const word of words) {
+    const cleanWord = String(word ?? "").trim();
+    if (cleanWord) {
+      result.push(cleanWord);
+    }
+  }
+  return result;
+}
+
+function populateLetterGroupOptions() {
+  els.letterGroup.innerHTML = "";
+
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = `Alle Buchstaben (${state.letterKeys.length} Gruppen)`;
+  els.letterGroup.appendChild(allOption);
+
+  for (const letter of state.letterKeys) {
+    const option = document.createElement("option");
+    option.value = letter;
+    option.textContent = `Nur ${letter}`;
+    els.letterGroup.appendChild(option);
+  }
+
+  els.letterGroup.value = "all";
 }
 
 function startQuiz() {
@@ -223,8 +300,12 @@ function startQuiz() {
 }
 
 function getWordPool(letterGroup) {
-  if (letterGroup === "both") {
-    return [...(state.wordBank.E ?? []), ...(state.wordBank.F ?? [])];
+  if (letterGroup === "all") {
+    const allWords = [];
+    for (const letter of state.letterKeys) {
+      allWords.push(...(state.wordBank[letter] ?? []));
+    }
+    return allWords;
   }
   return state.wordBank[letterGroup] ?? [];
 }
@@ -274,7 +355,7 @@ function speakWord(word) {
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = state.germanVoice?.lang ?? "de-DE";
   utterance.voice = state.germanVoice;
-  utterance.rate = 0.82;
+  utterance.rate = SPEECH_RATE;
   utterance.pitch = 1.02;
   window.speechSynthesis.speak(utterance);
 }
@@ -803,7 +884,9 @@ function updateTetrisStats() {
 }
 
 function drawTetris(overlayText = "") {
-  const cell = els.tetrisCanvas.width / BOARD_WIDTH;
+  const cell = Math.floor(
+    Math.min(els.tetrisCanvas.width / BOARD_WIDTH, els.tetrisCanvas.height / BOARD_HEIGHT)
+  );
   tetrisCtx.clearRect(0, 0, els.tetrisCanvas.width, els.tetrisCanvas.height);
   tetrisCtx.fillStyle = "#020617";
   tetrisCtx.fillRect(0, 0, els.tetrisCanvas.width, els.tetrisCanvas.height);

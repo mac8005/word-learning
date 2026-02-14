@@ -1,23 +1,29 @@
-# Word Galaxy Trainer
+# Wort-Galaxie Trainer
 
-Kid-friendly spelling web app that:
+Kinderfreundliche Schreiblern-App mit:
 
-- stores words in JSON (`/data/words.json`)
-- picks words in random order
-- reads each word aloud (German voice)
-- checks exact spelling and capitalization
-- shows mistakes and lets the child correct them
-- rewards coins and unlocks a mini game
+- zentraler Wort-Konfiguration in `/words.json` (im Repo-Root)
+- dynamischer Buchstaben-Auswahl aus der JSON-Datei (keine hardcodierten Buchstaben)
+- zufälliger Wortreihenfolge
+- deutscher Sprachausgabe
+- Prüfung auf exakte Schreibweise inkl. Groß-/Kleinschreibung
+- Korrekturmodus mit Fehleranzeige
+- Münzsystem + Tetris-Bonusspiel
 
-## Run
+## Wörter erweitern
 
-Use a local web server so `fetch()` can load JSON:
+Neue Buchstaben oder Wörter einfach in `/words.json` eintragen.
+Die Dropdown-Auswahl im UI passt sich automatisch an.
+
+## Starten
+
+Lokalen Webserver starten, damit `fetch()` die JSON laden kann:
 
 ```bash
 cd /Users/massimo/Git/word-learning
 python3 -m http.server 8080
 ```
 
-Then open:
+Dann öffnen:
 
 `http://localhost:8080`
