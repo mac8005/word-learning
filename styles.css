@@ -1,0 +1,347 @@
+:root {
+  --bg-1: #fef3c7;
+  --bg-2: #dbeafe;
+  --card: #ffffffcc;
+  --ink: #1f2937;
+  --accent: #0f766e;
+  --accent-2: #f97316;
+  --success: #16a34a;
+  --error: #dc2626;
+  --shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Nunito", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 15% 10%, #fff4cf 0%, transparent 30%),
+    radial-gradient(circle at 80% 20%, #dbeafe 0%, transparent 35%),
+    linear-gradient(120deg, var(--bg-1), var(--bg-2));
+  min-height: 100vh;
+}
+
+.app-shell {
+  width: min(1100px, 94vw);
+  margin: 1.25rem auto 2rem;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Baloo 2", cursive;
+  margin: 0.25rem 0;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+}
+
+h2 {
+  font-size: 1.6rem;
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  color: #334155;
+}
+
+.coin-badge {
+  background: linear-gradient(130deg, #fde047, #fb923c);
+  color: #4a2c00;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  font-weight: 900;
+  box-shadow: var(--shadow);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+.layout {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--card);
+  backdrop-filter: blur(4px);
+  border: 2px solid #ffffff;
+  border-radius: 1.15rem;
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.controls-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+select,
+input {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.8rem;
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px #99f6e4;
+}
+
+.btn {
+  border: 0;
+  border-radius: 0.8rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease;
+  font-family: "Baloo 2", cursive;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn.primary {
+  background: linear-gradient(120deg, var(--accent), #14b8a6);
+  color: white;
+}
+
+.btn.secondary {
+  background: linear-gradient(120deg, #475569, #64748b);
+  color: white;
+}
+
+.small-note {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #334155;
+}
+
+.quiz-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.progress-track {
+  height: 0.75rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 10%;
+  background: linear-gradient(90deg, #22c55e, #facc15);
+  transition: width 0.25s ease;
+}
+
+.letter-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 2.4rem;
+}
+
+.slot {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: #c7d2fe;
+}
+
+.quiz-controls {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.feedback {
+  min-height: 1.25rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.ok {
+  color: var(--success);
+}
+
+.bad {
+  color: var(--error);
+}
+
+.hidden {
+  display: none;
+}
+
+.result-highlight {
+  background: linear-gradient(140deg, #bbf7d0, #bfdbfe);
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+}
+
+.rating {
+  font-size: 1.5rem;
+  font-family: "Baloo 2", cursive;
+  font-weight: 800;
+}
+
+.score-line {
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+#mistakesList {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.mistake-item {
+  display: grid;
+  gap: 0.5rem;
+  background: #fffbeb;
+  border: 2px solid #fde68a;
+  border-radius: 0.8rem;
+  padding: 0.65rem;
+}
+
+.mistake-item.corrected {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.mistake-title {
+  font-weight: 800;
+}
+
+.mistake-meta {
+  margin: 0;
+  color: #334155;
+}
+
+.mini-stats {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 900;
+}
+
+.mini-shop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.ticket-badge {
+  background: linear-gradient(130deg, #fecaca, #fcd34d);
+  color: #4a2c00;
+  padding: 0.5rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.tetris-canvas {
+  width: 100%;
+  max-width: 300px;
+  align-self: center;
+  border-radius: 0.8rem;
+  border: 2px solid #334155;
+  background: linear-gradient(180deg, #020617, #1e293b);
+}
+
+.tetris-controls {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.celebration {
+  pointer-events: none;
+  position: fixed;
+  top: -10px;
+  width: 10px;
+  height: 16px;
+  border-radius: 3px;
+  animation: fall 1.8s linear forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(110vh) rotate(300deg);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

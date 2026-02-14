@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wort-Galaxie Trainer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero card">
+        <div>
+          <p class="eyebrow">Lernspiel</p>
+          <h1>Wort-Galaxie Trainer</h1>
+          <p class="subtitle">
+            Höre genau zu, tippe das Wort und sammle Münzen für Tetris.
+          </p>
+        </div>
+        <div class="coin-badge" id="coinBadge">Münzen: <strong id="coinCount">0</strong></div>
+      </header>
+
+      <main class="layout">
+        <section class="card panel" id="setupPanel">
+          <h2>Neues Wort-Set starten</h2>
+          <div class="controls-grid">
+            <label>
+              Buchstabengruppe
+              <select id="letterGroup">
+                <option value="both">E + F</option>
+                <option value="E">Nur E</option>
+                <option value="F">Nur F</option>
+              </select>
+            </label>
+            <label>
+              Set-Größe
+              <select id="setSize">
+                <option value="5">5 Wörter</option>
+                <option value="10" selected>10 Wörter</option>
+                <option value="15">15 Wörter</option>
+                <option value="20">20 Wörter</option>
+              </select>
+            </label>
+          </div>
+          <button id="startBtn" class="btn primary">Mission starten</button>
+          <p class="small-note">Tipp: Groß- und Kleinschreibung wird genau geprüft.</p>
+        </section>
+
+        <section class="card panel hidden" id="quizPanel">
+          <div class="quiz-top">
+            <h2>Schreibe, was du hörst</h2>
+            <p id="progressText">Wort 1 / 10</p>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="letter-slots" id="letterSlots"></div>
+          <div class="quiz-controls">
+            <button id="speakBtn" class="btn secondary">Wort vorlesen</button>
+            <input
+              id="wordInput"
+              type="text"
+              autocomplete="off"
+              placeholder="Wort hier eingeben"
+              aria-label="Gesprochenes Wort eingeben"
+            />
+            <button id="nextBtn" class="btn primary">Nächstes Wort</button>
+          </div>
+          <p id="quizFeedback" class="feedback"></p>
+        </section>
+
+        <section class="card panel hidden" id="resultPanel">
+          <h2>Missionsergebnis</h2>
+          <div class="result-highlight">
+            <div class="rating" id="ratingLabel">Wort-Held</div>
+            <div class="score-line" id="scoreLine">8 / 10 richtig</div>
+            <div class="score-line" id="coinRewardLine">+20 Münzen erhalten</div>
+          </div>
+          <div id="mistakesBlock">
+            <h3>Fehler-Labor</h3>
+            <p>Korrigiere die falschen Wörter und hole Bonus-Münzen.</p>
+            <div id="mistakesList"></div>
+            <button id="checkCorrectionsBtn" class="btn primary">Korrekturen prüfen</button>
+            <p id="correctionFeedback" class="feedback"></p>
+          </div>
+          <button id="playAgainBtn" class="btn secondary">Neues Set spielen</button>
+        </section>
+
+        <section class="card panel" id="miniGamePanel">
+          <h2>Bonus-Spiel: Tetris</h2>
+          <p class="small-note">
+            20 Münzen = 2 Spiele. Tetris startet nur, wenn du auf Start klickst.
+          </p>
+          <div class="mini-shop">
+            <button id="buyTetrisPlaysBtn" class="btn secondary">
+              2 Spiele für 20 Münzen kaufen
+            </button>
+            <span class="ticket-badge">Spiele: <strong id="tetrisPlays">0</strong></span>
+          </div>
+          <div class="mini-stats">
+            <span id="tetrisScore">Punkte: 0</span>
+            <span id="tetrisLines">Linien: 0</span>
+          </div>
+          <canvas
+            id="tetrisCanvas"
+            class="tetris-canvas"
+            width="240"
+            height="400"
+            aria-label="Tetris Spielfeld"
+          ></canvas>
+          <div class="tetris-controls">
+            <button id="startMiniGameBtn" class="btn primary">Tetris starten (1 Spiel)</button>
+            <button id="pauseMiniGameBtn" class="btn secondary">Pause</button>
+          </div>
+          <p class="small-note">Steuerung: ← → bewegen, ↑ drehen, ↓ schneller, Leertaste fallen.</p>
+          <p id="miniGameFeedback" class="feedback"></p>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
