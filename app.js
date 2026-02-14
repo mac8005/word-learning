@@ -68,6 +68,7 @@ const state = {
   tetrisPlays: 0,
   germanVoice: null,
   audioCtx: null,
+  savedScrollY: 0,
   tetris: {
     active: false,
     paused: false,
@@ -123,6 +124,12 @@ const els = {
   startMiniGameBtn: document.getElementById("startMiniGameBtn"),
   pauseMiniGameBtn: document.getElementById("pauseMiniGameBtn"),
   tetrisModalFeedback: document.getElementById("tetrisModalFeedback"),
+  // Touch controls
+  touchLeft: document.getElementById("touchLeft"),
+  touchRight: document.getElementById("touchRight"),
+  touchRotate: document.getElementById("touchRotate"),
+  touchDown: document.getElementById("touchDown"),
+  touchDrop: document.getElementById("touchDrop"),
 };
 
 const tetrisCtx = els.tetrisCanvas.getContext("2d");
@@ -196,11 +203,131 @@ function bindEvents() {
   });
 
   window.addEventListener("keydown", handleTetrisKeyDown);
+
+  // Touch D-pad buttons
+  bindTouchButton(els.touchLeft, () => {
+    if (tryMovePiece(-1, 0)) { playSfx("move"); drawTetris(); }
+  });
+  bindTouchButton(els.touchRight, () => {
+    if (tryMovePiece(1, 0)) { playSfx("move"); drawTetris(); }
+  });
+  bindTouchButton(els.touchRotate, () => {
+    if (tryRotatePiece()) { playSfx("rotate"); drawTetris(); }
+  }, false);
+  bindTouchButton(els.touchDown, () => {
+    if (tryMovePiece(0, 1)) {
+      state.tetris.score += 1;
+      updateTetrisStats();
+    } else {
+      lockCurrentPiece();
+    }
+    drawTetris();
+  });
+  bindTouchButton(els.touchDrop, () => {
+    hardDrop();
+    drawTetris();
+  }, false);
+
+  // Swipe gestures on canvas
+  bindSwipeGestures(els.tetrisCanvas);
+}
+
+function bindTouchButton(el, action, repeat = true) {
+  let intervalId = null;
+  const REPEAT_DELAY = 150;
+
+  const start = (e) => {
+    e.preventDefault();
+    if (!state.tetris.active || state.tetris.paused) return;
+    action();
+    if (!repeat) return;
+    clearInterval(intervalId);
+    intervalId = setInterval(() => {
+      if (!state.tetris.active || state.tetris.paused) { clearInterval(intervalId); return; }
+      action();
+    }, REPEAT_DELAY);
+  };
+
+  const stop = (e) => {
+    e.preventDefault();
+    clearInterval(intervalId);
+    intervalId = null;
+  };
+
+  el.addEventListener("touchstart", start, { passive: false });
+  el.addEventListener("touchend", stop, { passive: false });
+  el.addEventListener("touchcancel", stop, { passive: false });
+  el.addEventListener("mousedown", start);
+  el.addEventListener("mouseup", stop);
+  el.addEventListener("mouseleave", stop);
+}
+
+function bindSwipeGestures(canvas) {
+  let startX = 0;
+  let startY = 0;
+  let swiped = false;
+
+  canvas.addEventListener("touchstart", (e) => {
+    if (!state.tetris.active || state.tetris.paused) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    swiped = false;
+  }, { passive: false });
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (!state.tetris.active || state.tetris.paused || swiped) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    const MIN_SWIPE = 30;
+
+    if (Math.abs(dx) > MIN_SWIPE && Math.abs(dx) > Math.abs(dy)) {
+      swiped = true;
+      if (dx > 0) {
+        if (tryMovePiece(1, 0)) playSfx("move");
+      } else {
+        if (tryMovePiece(-1, 0)) playSfx("move");
+      }
+      startX = touch.clientX;
+      swiped = false;
+      drawTetris();
+    } else if (dy > MIN_SWIPE && Math.abs(dy) > Math.abs(dx)) {
+      swiped = true;
+      if (tryMovePiece(0, 1)) {
+        state.tetris.score += 1;
+        updateTetrisStats();
+      }
+      startY = touch.clientY;
+      swiped = false;
+      drawTetris();
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchend", (e) => {
+    if (!state.tetris.active || state.tetris.paused) return;
+    e.preventDefault();
+    // Tap to rotate
+    if (!swiped) {
+      const touch = e.changedTouches[0];
+      const dx = Math.abs(touch.clientX - startX);
+      const dy = Math.abs(touch.clientY - startY);
+      if (dx < 10 && dy < 10) {
+        if (tryRotatePiece()) playSfx("rotate");
+        drawTetris();
+      }
+    }
+  }, { passive: false });
 }
 
 // ─── Modal ───
 
 function openTetrisModal() {
+  state.savedScrollY = window.scrollY;
+  document.body.classList.add("modal-open");
+  document.body.style.top = `-${state.savedScrollY}px`;
   els.tetrisModalBackdrop.classList.remove("hidden");
   updateCoinDisplay();
   updateTetrisPlayDisplay();
@@ -215,6 +342,9 @@ function closeTetrisModal() {
     return;
   }
   els.tetrisModalBackdrop.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  document.body.style.top = "";
+  window.scrollTo(0, state.savedScrollY || 0);
 }
 
 // ─── Speech ───
