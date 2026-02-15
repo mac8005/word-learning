@@ -56,6 +56,32 @@ const PIECE_COLORS = {
   L: "#fb923c",
 };
 
+// Tetris theme (Korobeiniki) – melody voice [frequency, eighthNotes]
+const TETRIS_MELODY = [
+  // Section A
+  [329.63,2],[246.94,1],[261.63,1],[293.66,2],[261.63,1],[246.94,1],
+  [220,2],[220,1],[261.63,1],[329.63,2],[293.66,1],[261.63,1],
+  [246.94,3],[261.63,1],[293.66,2],[329.63,2],
+  [261.63,2],[220,2],[220,4],
+  // Section B
+  [0,1],[293.66,2],[349.23,1],[440,2],[392,1],[349.23,1],
+  [329.63,3],[261.63,1],[329.63,2],[293.66,1],[261.63,1],
+  [246.94,3],[261.63,1],[293.66,2],[329.63,2],
+  [261.63,2],[220,2],[220,4],
+];
+
+// Tetris theme – bass voice [frequency, eighthNotes]
+const TETRIS_BASS = [
+  [110,4],[82.41,4],
+  [110,4],[110,4],
+  [103.83,4],[82.41,4],
+  [110,4],[82.41,4],
+  [146.83,4],[146.83,4],
+  [130.81,4],[130.81,4],
+  [123.47,4],[82.41,4],
+  [110,4],[82.41,4],
+];
+
 const state = {
   wordBank: {},
   letterKeys: [],
@@ -81,6 +107,10 @@ const state = {
     dropMs: BASE_DROP_MS,
     lastDropMs: 0,
     rafId: 0,
+    musicTimerId: 0,
+    musicGain: null,
+    musicMelodyIdx: 0,
+    musicBassIdx: 0,
   },
 };
 
@@ -822,6 +852,7 @@ function startTetrisGame() {
   state.tetris.lastDropMs = performance.now();
   setFeedback(els.tetrisModalFeedback, "Tetris gestartet. Viel Spass!", "ok");
   playSfx("start");
+  startTetrisMusic();
   state.tetris.rafId = requestAnimationFrame(runTetrisFrame);
 }
 
@@ -846,9 +877,11 @@ function toggleTetrisPause() {
 
   state.tetris.paused = !state.tetris.paused;
   if (state.tetris.paused) {
+    pauseTetrisMusic();
     setFeedback(els.tetrisModalFeedback, "Tetris pausiert.", "ok");
     drawTetris("PAUSE");
   } else {
+    resumeTetrisMusic();
     setFeedback(els.tetrisModalFeedback, "Tetris läuft weiter.", "ok");
     state.tetris.lastDropMs = performance.now();
     state.tetris.rafId = requestAnimationFrame(runTetrisFrame);
@@ -1058,6 +1091,7 @@ function endTetrisGame() {
   state.tetris.active = false;
   state.tetris.paused = false;
   cancelAnimationFrame(state.tetris.rafId);
+  stopTetrisMusic();
   drawTetris("ENDE");
 
   setFeedback(
@@ -1257,6 +1291,111 @@ function playSfx(name) {
     playTone(210, 0.1, { type: "sawtooth", gain: 0.018, delay: 0.09, endFrequency: 130 });
     playTone(160, 0.12, { type: "sawtooth", gain: 0.018, delay: 0.19, endFrequency: 90 });
   }
+}
+
+// ─── Tetris music (Korobeiniki) ───
+
+function scheduleMusicNote(freq, when, dur, type, vol) {
+  const ctx = state.audioCtx;
+  const dest = state.tetris.musicGain;
+  if (!ctx || !dest) return;
+
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+
+  const end = when + dur;
+  const attack = when + 0.015;
+  const release = Math.max(attack + 0.001, end - 0.02);
+
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(vol, attack);
+  g.gain.setValueAtTime(vol, release);
+  g.gain.exponentialRampToValueAtTime(0.0001, end);
+
+  osc.connect(g).connect(dest);
+  osc.start(when);
+  osc.stop(end + 0.01);
+}
+
+function runMusicScheduler() {
+  const ctx = state.audioCtx;
+  if (!ctx || !state.tetris.musicGain) return;
+
+  const BPM = 144;
+  const eighth = 60 / BPM / 2;
+  let melTime = ctx.currentTime + 0.05;
+  let bassTime = ctx.currentTime + 0.05;
+
+  function tick() {
+    if (!state.tetris.musicGain) return;
+
+    while (melTime < ctx.currentTime + 0.25) {
+      const [f, d] = TETRIS_MELODY[state.tetris.musicMelodyIdx];
+      const dur = d * eighth;
+      if (f > 0) scheduleMusicNote(f, melTime, dur * 0.9, "square", 0.012);
+      melTime += dur;
+      state.tetris.musicMelodyIdx = (state.tetris.musicMelodyIdx + 1) % TETRIS_MELODY.length;
+    }
+
+    while (bassTime < ctx.currentTime + 0.25) {
+      const [f, d] = TETRIS_BASS[state.tetris.musicBassIdx];
+      const dur = d * eighth;
+      if (f > 0) scheduleMusicNote(f, bassTime, dur * 0.85, "triangle", 0.010);
+      bassTime += dur;
+      state.tetris.musicBassIdx = (state.tetris.musicBassIdx + 1) % TETRIS_BASS.length;
+    }
+
+    state.tetris.musicTimerId = setTimeout(tick, 100);
+  }
+
+  tick();
+}
+
+function startTetrisMusic() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  stopTetrisMusic();
+
+  const gain = ctx.createGain();
+  gain.gain.value = 1;
+  gain.connect(ctx.destination);
+  state.tetris.musicGain = gain;
+  state.tetris.musicMelodyIdx = 0;
+  state.tetris.musicBassIdx = 0;
+
+  runMusicScheduler();
+}
+
+function pauseTetrisMusic() {
+  clearTimeout(state.tetris.musicTimerId);
+  state.tetris.musicTimerId = 0;
+  if (state.tetris.musicGain && state.audioCtx) {
+    state.tetris.musicGain.gain.setTargetAtTime(0, state.audioCtx.currentTime, 0.03);
+  }
+}
+
+function resumeTetrisMusic() {
+  if (!state.tetris.musicGain || !state.audioCtx) return;
+  state.tetris.musicGain.gain.setTargetAtTime(1, state.audioCtx.currentTime, 0.03);
+  runMusicScheduler();
+}
+
+function stopTetrisMusic() {
+  clearTimeout(state.tetris.musicTimerId);
+  state.tetris.musicTimerId = 0;
+  if (state.tetris.musicGain) {
+    try {
+      if (state.audioCtx) {
+        state.tetris.musicGain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+      }
+      state.tetris.musicGain.disconnect();
+    } catch (_) { /* ignore */ }
+    state.tetris.musicGain = null;
+  }
+  state.tetris.musicMelodyIdx = 0;
+  state.tetris.musicBassIdx = 0;
 }
 
 // ─── Utilities ───
