@@ -1,5 +1,9 @@
 # Wort-Galaxie Trainer
 
+## GitHub Pages
+
+Live-App: [https://mac8005.github.io/word-learning/](https://mac8005.github.io/word-learning/)
+
 Kinderfreundliche Schreiblern-App mit:
 
 - zentraler Wort-Konfiguration in `/words.json` (im Repo-Root)
