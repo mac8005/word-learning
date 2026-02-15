@@ -1232,6 +1232,24 @@ function ensureAudio() {
   return state.audioCtx;
 }
 
+// iOS requires AudioContext to be unlocked during a user gesture.
+// Play a tiny silent buffer on the very first interaction so that
+// all subsequent playTone / music scheduling works reliably.
+function unlockAudioOnce() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start(0);
+  // Only needs to run once
+  document.removeEventListener("touchstart", unlockAudioOnce, true);
+  document.removeEventListener("click", unlockAudioOnce, true);
+}
+document.addEventListener("touchstart", unlockAudioOnce, true);
+document.addEventListener("click", unlockAudioOnce, true);
+
 function playTone(frequency, duration, options = {}) {
   const ctx = ensureAudio();
   if (!ctx) return;
@@ -1358,14 +1376,22 @@ function startTetrisMusic() {
   if (!ctx) return;
   stopTetrisMusic();
 
-  const gain = ctx.createGain();
-  gain.gain.value = 1;
-  gain.connect(ctx.destination);
-  state.tetris.musicGain = gain;
-  state.tetris.musicMelodyIdx = 0;
-  state.tetris.musicBassIdx = 0;
+  const begin = () => {
+    const gain = ctx.createGain();
+    gain.gain.value = 1;
+    gain.connect(ctx.destination);
+    state.tetris.musicGain = gain;
+    state.tetris.musicMelodyIdx = 0;
+    state.tetris.musicBassIdx = 0;
+    runMusicScheduler();
+  };
 
-  runMusicScheduler();
+  // On iOS the context may still be resuming; wait for it before scheduling
+  if (ctx.state === "suspended") {
+    ctx.resume().then(begin);
+  } else {
+    begin();
+  }
 }
 
 function pauseTetrisMusic() {
