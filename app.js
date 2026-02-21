@@ -692,6 +692,23 @@ function renderMistakes() {
     if (speakWrongButton) {
       speakWrongButton.addEventListener("click", () => speakWord(mistake.userInput));
     }
+
+    const correctionInput = row.querySelector(".correction-input");
+    if (correctionInput) {
+      correctionInput.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const allInputs = [...els.mistakesList.querySelectorAll(".correction-input")];
+        const currentIndex = allInputs.indexOf(correctionInput);
+        const nextInput = allInputs.slice(currentIndex + 1).find((inp) => !inp.closest(".mistake-item.corrected"));
+        if (nextInput) {
+          nextInput.focus();
+        } else {
+          checkCorrections();
+        }
+      });
+    }
+
     els.mistakesList.appendChild(row);
   }
 }
