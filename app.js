@@ -678,15 +678,19 @@ function renderMistakes() {
 
     row.innerHTML = `
       <div class="mistake-title">Nochmal versuchen</div>
-      <p class="mistake-meta">Deine Eingabe: <strong>${escapeHtml(mistake.userInput)}</strong></p>
+      <p class="mistake-meta">Deine Eingabe: <strong>${escapeHtml(mistake.userInput)}</strong> <button type="button" class="btn secondary speak-wrong">Falsche Eingabe vorlesen</button></p>
       <p class="mistake-meta">${detail}</p>
-      <button type="button" class="btn secondary retry-audio">Nochmal vorlesen</button>
+      <button type="button" class="btn secondary retry-audio">Richtiges Wort vorlesen</button>
       <input type="text" class="correction-input" placeholder="Korrektes Wort eingeben" />
     `;
 
     const retryAudioButton = row.querySelector(".retry-audio");
     if (retryAudioButton) {
       retryAudioButton.addEventListener("click", () => speakWord(mistake.target));
+    }
+    const speakWrongButton = row.querySelector(".speak-wrong");
+    if (speakWrongButton) {
+      speakWrongButton.addEventListener("click", () => speakWord(mistake.userInput));
     }
     els.mistakesList.appendChild(row);
   }
