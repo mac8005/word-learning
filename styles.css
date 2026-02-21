@@ -275,6 +275,15 @@ select:focus {
 .mistake-meta {
   margin: 0;
   color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.speak-wrong {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
 }
 
 /* ─── Arcade card on main page ─── */
