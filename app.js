@@ -675,17 +675,33 @@ function edgeTTSSpeak(word) {
 
 // ─── Google Translate TTS fallback ───
 
+const GOOGLE_TTS_TIMEOUT_MS = 3000;
+
 function speakWordViaGoogleAudio(word) {
   return new Promise((resolve, reject) => {
     const url =
       "https://translate.google.com/translate_tts?ie=UTF-8&tl=de&client=tw-ob&q=" +
       encodeURIComponent(word);
     const audio = new Audio(url);
+    let settled = false;
+    const fail = (err) => { if (!settled) { settled = true; reject(err); } };
+    const ok = (v) => { if (!settled) { settled = true; resolve(v); } };
+
+    // Timeout: on iOS, audio.load() may hang silently without firing events
+    const timer = setTimeout(() => {
+      console.log("[TTS] Google Translate Audio Timeout");
+      fail(new Error("Google TTS timeout"));
+    }, GOOGLE_TTS_TIMEOUT_MS);
+
     audio.addEventListener("canplaythrough", () => {
+      clearTimeout(timer);
       console.log("[TTS] Verwende Google Translate Audio");
-      audio.play().then(resolve).catch(reject);
+      audio.play().then(ok).catch(fail);
     }, { once: true });
-    audio.addEventListener("error", () => reject(new Error("Google TTS audio error")), { once: true });
+    audio.addEventListener("error", () => {
+      clearTimeout(timer);
+      fail(new Error("Google TTS audio error"));
+    }, { once: true });
     // Trigger load
     audio.load();
   });
