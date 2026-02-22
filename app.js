@@ -573,56 +573,133 @@ function speakCurrentWord() {
   speakWord(word);
 }
 
+// ─── Edge TTS (Neural voices via WebSocket) ───
+
+const EDGE_TTS_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
+const EDGE_TTS_WS_URL =
+  "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/token/web/dc/" +
+  EDGE_TTS_TOKEN;
+const EDGE_TTS_VOICE = "de-DE-KatjaNeural";
+const EDGE_TTS_TIMEOUT_MS = 5000;
+
+function escapeXml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+function edgeTTSSpeak(word) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (err) => { if (!settled) { settled = true; reject(err); } };
+    const ok = (v) => { if (!settled) { settled = true; resolve(v); } };
+
+    const ws = new WebSocket(EDGE_TTS_WS_URL);
+    const requestId = crypto.randomUUID().replaceAll("-", "");
+    const audioChunks = [];
+
+    const timer = setTimeout(() => {
+      ws.close();
+      fail(new Error("Edge TTS timeout"));
+    }, EDGE_TTS_TIMEOUT_MS);
+
+    ws.onopen = () => {
+      const ts = new Date().toISOString();
+      // Config
+      ws.send(
+        "X-Timestamp:" + ts + "\r\n" +
+        "Content-Type:application/json; charset=utf-8\r\n" +
+        "Path:speech.config\r\n\r\n" +
+        JSON.stringify({
+          context: {
+            synthesis: {
+              audio: {
+                metadataoptions: {
+                  sentenceBoundaryEnabled: "false",
+                  wordBoundaryEnabled: "false",
+                },
+                outputFormat: "audio-24khz-48kbitrate-mono-mp3",
+              },
+            },
+          },
+        })
+      );
+      // SSML request
+      ws.send(
+        "X-RequestId:" + requestId + "\r\n" +
+        "Content-Type:application/ssml+xml\r\n" +
+        "X-Timestamp:" + ts + "\r\n" +
+        "Path:ssml\r\n\r\n" +
+        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='de-DE'>" +
+        "<voice name='" + EDGE_TTS_VOICE + "'>" +
+        "<prosody rate='-20%'>" + escapeXml(word) + "</prosody>" +
+        "</voice></speak>"
+      );
+    };
+
+    ws.onmessage = (event) => {
+      if (event.data instanceof Blob) {
+        event.data.arrayBuffer().then((buf) => {
+          const view = new DataView(buf);
+          const headerLen = view.getUint16(0);
+          if (buf.byteLength > 2 + headerLen) {
+            audioChunks.push(buf.slice(2 + headerLen));
+          }
+        });
+      } else if (typeof event.data === "string" && event.data.includes("Path:turn.end")) {
+        clearTimeout(timer);
+        ws.close();
+        if (audioChunks.length === 0) {
+          fail(new Error("No audio data"));
+          return;
+        }
+        const blob = new Blob(audioChunks, { type: "audio/mpeg" });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.addEventListener("ended", () => URL.revokeObjectURL(url));
+        audio.play().then(ok).catch(fail);
+      }
+    };
+
+    ws.onerror = () => { clearTimeout(timer); fail(new Error("WebSocket error")); };
+  });
+}
+
+// ─── Speech Synthesis fallback ───
+
+function findGermanVoiceNow() {
+  if (!state.germanVoice && "speechSynthesis" in window) {
+    const voices = window.speechSynthesis.getVoices();
+    const scored = voices
+      .map((v) => ({ voice: v, score: scoreVoice(v) }))
+      .filter((e) => e.score > 0)
+      .sort((a, b) => b.score - a.score);
+    if (scored.length > 0) state.germanVoice = scored[0].voice;
+  }
+}
+
 function speakWordViaSynthesis(word) {
+  findGermanVoiceNow();
+  if (!state.germanVoice) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = state.germanVoice?.lang ?? "de-DE";
+  utterance.lang = state.germanVoice.lang;
   utterance.voice = state.germanVoice;
-  // Use a slightly faster rate for low-quality local voices (0.5 sounds very
-  // robotic). High-quality cloud voices handle slow rates well.
-  utterance.rate = hasHighQualityVoice() ? SPEECH_RATE : 0.72;
+  utterance.rate = SPEECH_RATE;
   utterance.pitch = 1.02;
   window.speechSynthesis.speak(utterance);
 }
 
-function speakWordViaAudio(word) {
-  const url =
-    "https://translate.google.com/translate_tts?ie=UTF-8&tl=de&client=tw-ob&q=" +
-    encodeURIComponent(word);
-  const audio = new Audio(url);
-  audio.addEventListener("error", () => {
-    // Audio fallback failed, fall back to speech synthesis
-    speakWordViaSynthesis(word);
-  });
-  audio.play().catch(() => {
-    speakWordViaSynthesis(word);
-  });
-}
-
-function hasHighQualityVoice() {
-  if (!state.germanVoice) return false;
-  const name = state.germanVoice.name.toLowerCase();
-  return (
-    /natural|neural|online|wavenet|enhanced/i.test(name) ||
-    !state.germanVoice.localService
-  );
-}
+// ─── Public speak function ───
 
 function speakWord(word) {
-  if (!word) {
-    return;
-  }
-  if (!("speechSynthesis" in window)) {
-    setFeedback(els.quizFeedback, "Vorlesen wird in diesem Browser nicht unterstützt.", "bad");
-    return;
-  }
+  if (!word) return;
 
-  if (hasHighQualityVoice()) {
-    speakWordViaSynthesis(word);
-  } else {
-    // On Windows with only low-quality local voices, try audio fallback first
-    speakWordViaAudio(word);
-  }
+  // Always try Edge TTS first (best quality), fall back to Web Speech API
+  edgeTTSSpeak(word).catch(() => {
+    if ("speechSynthesis" in window) {
+      speakWordViaSynthesis(word);
+    }
+  });
 }
 
 function submitCurrentAnswer() {
