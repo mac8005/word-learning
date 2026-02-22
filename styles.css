@@ -172,6 +172,13 @@ select:focus {
   color: #334155;
 }
 
+.build-info {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  padding: 1rem 0 0.5rem;
+}
+
 .quiz-top {
   display: flex;
   justify-content: space-between;
