@@ -652,6 +652,7 @@ function edgeTTSSpeak(word) {
           fail(new Error("No audio data"));
           return;
         }
+        console.log("[TTS] Verwende Edge TTS (de-DE-KatjaNeural)");
         const blob = new Blob(audioChunks, { type: "audio/mpeg" });
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
@@ -660,7 +661,29 @@ function edgeTTSSpeak(word) {
       }
     };
 
-    ws.onerror = () => { clearTimeout(timer); fail(new Error("WebSocket error")); };
+    ws.onerror = (e) => {
+      console.log("[TTS] Edge TTS WebSocket fehlgeschlagen, versuche nächsten Fallback");
+      clearTimeout(timer);
+      fail(new Error("WebSocket error"));
+    };
+  });
+}
+
+// ─── Google Translate TTS fallback ───
+
+function speakWordViaGoogleAudio(word) {
+  return new Promise((resolve, reject) => {
+    const url =
+      "https://translate.google.com/translate_tts?ie=UTF-8&tl=de&client=tw-ob&q=" +
+      encodeURIComponent(word);
+    const audio = new Audio(url);
+    audio.addEventListener("canplaythrough", () => {
+      console.log("[TTS] Verwende Google Translate Audio");
+      audio.play().then(resolve).catch(reject);
+    }, { once: true });
+    audio.addEventListener("error", () => reject(new Error("Google TTS audio error")), { once: true });
+    // Trigger load
+    audio.load();
   });
 }
 
@@ -680,6 +703,7 @@ function findGermanVoiceNow() {
 function speakWordViaSynthesis(word) {
   findGermanVoiceNow();
   if (!state.germanVoice) return;
+  console.log("[TTS] Verwende Speech Synthesis:", state.germanVoice.name);
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = state.germanVoice.lang;
@@ -694,12 +718,14 @@ function speakWordViaSynthesis(word) {
 function speakWord(word) {
   if (!word) return;
 
-  // Always try Edge TTS first (best quality), fall back to Web Speech API
-  edgeTTSSpeak(word).catch(() => {
-    if ("speechSynthesis" in window) {
-      speakWordViaSynthesis(word);
-    }
-  });
+  // Fallback chain: Edge TTS → Google Translate Audio → local Speech Synthesis
+  edgeTTSSpeak(word)
+    .catch(() => speakWordViaGoogleAudio(word))
+    .catch(() => {
+      if ("speechSynthesis" in window) {
+        speakWordViaSynthesis(word);
+      }
+    });
 }
 
 function submitCurrentAnswer() {
