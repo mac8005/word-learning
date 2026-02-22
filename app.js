@@ -379,6 +379,22 @@ function closeTetrisModal() {
 
 // ─── Speech ───
 
+function scoreVoice(voice) {
+  const name = voice.name.toLowerCase();
+  const lang = voice.lang.toLowerCase();
+  let score = 0;
+  if (lang === "de-de") score += 10;
+  else if (lang.startsWith("de")) score += 5;
+  else if (/deutsch|german/i.test(voice.name)) score += 3;
+  else return 0; // not a German voice at all
+
+  // Strongly prefer high-quality cloud / neural voices (available in Chrome & Edge on Windows)
+  if (/natural|neural|online|wavenet|enhanced/i.test(name)) score += 100;
+  // Slightly prefer remote voices (often higher quality than local)
+  if (!voice.localService) score += 20;
+  return score;
+}
+
 function setupSpeechVoices() {
   if (!("speechSynthesis" in window)) {
     return;
@@ -386,11 +402,11 @@ function setupSpeechVoices() {
 
   const assignVoice = () => {
     const voices = window.speechSynthesis.getVoices();
-    state.germanVoice =
-      voices.find((voice) => voice.lang.toLowerCase() === "de-de") ||
-      voices.find((voice) => voice.lang.toLowerCase().startsWith("de")) ||
-      voices.find((voice) => /deutsch|german/i.test(voice.name)) ||
-      null;
+    const scored = voices
+      .map((v) => ({ voice: v, score: scoreVoice(v) }))
+      .filter((e) => e.score > 0)
+      .sort((a, b) => b.score - a.score);
+    state.germanVoice = scored.length > 0 ? scored[0].voice : null;
   };
 
   assignVoice();
@@ -557,6 +573,41 @@ function speakCurrentWord() {
   speakWord(word);
 }
 
+function speakWordViaSynthesis(word) {
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.lang = state.germanVoice?.lang ?? "de-DE";
+  utterance.voice = state.germanVoice;
+  // Use a slightly faster rate for low-quality local voices (0.5 sounds very
+  // robotic). High-quality cloud voices handle slow rates well.
+  utterance.rate = hasHighQualityVoice() ? SPEECH_RATE : 0.72;
+  utterance.pitch = 1.02;
+  window.speechSynthesis.speak(utterance);
+}
+
+function speakWordViaAudio(word) {
+  const url =
+    "https://translate.google.com/translate_tts?ie=UTF-8&tl=de&client=tw-ob&q=" +
+    encodeURIComponent(word);
+  const audio = new Audio(url);
+  audio.addEventListener("error", () => {
+    // Audio fallback failed, fall back to speech synthesis
+    speakWordViaSynthesis(word);
+  });
+  audio.play().catch(() => {
+    speakWordViaSynthesis(word);
+  });
+}
+
+function hasHighQualityVoice() {
+  if (!state.germanVoice) return false;
+  const name = state.germanVoice.name.toLowerCase();
+  return (
+    /natural|neural|online|wavenet|enhanced/i.test(name) ||
+    !state.germanVoice.localService
+  );
+}
+
 function speakWord(word) {
   if (!word) {
     return;
@@ -566,13 +617,12 @@ function speakWord(word) {
     return;
   }
 
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = state.germanVoice?.lang ?? "de-DE";
-  utterance.voice = state.germanVoice;
-  utterance.rate = SPEECH_RATE;
-  utterance.pitch = 1.02;
-  window.speechSynthesis.speak(utterance);
+  if (hasHighQualityVoice()) {
+    speakWordViaSynthesis(word);
+  } else {
+    // On Windows with only low-quality local voices, try audio fallback first
+    speakWordViaAudio(word);
+  }
 }
 
 function submitCurrentAnswer() {
