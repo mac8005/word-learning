@@ -7,6 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
+const BUILD_DATE = "2026-02-22 14:30";
 
 const SHAPES = {
   I: [
@@ -176,6 +177,9 @@ async function initialize() {
   bindEvents();
   setupSpeechVoices();
   drawTetris("TETRIS");
+
+  const buildEl = document.getElementById("buildInfo");
+  if (buildEl) buildEl.textContent = "Build: " + BUILD_DATE;
 
   els.startBtn.disabled = true;
   els.letterGroup.disabled = true;
