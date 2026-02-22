@@ -735,10 +735,24 @@ function speakWordViaSynthesis(word) {
 
 // ─── Public speak function ───
 
+const IS_IOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
 function speakWord(word) {
   if (!word) return;
 
-  // Fallback chain: Edge TTS → Google Translate Audio → local Speech Synthesis
+  // iOS Safari: speechSynthesis.speak() MUST be called synchronously inside
+  // a user-gesture handler.  Async promise chains (Edge TTS reject → Google
+  // timeout) lose the gesture context and Safari blocks all audio.
+  // Apple's built-in German voices are high quality, so this is fine.
+  if (IS_IOS) {
+    console.log("[TTS] iOS erkannt – verwende Speech Synthesis direkt");
+    speakWordViaSynthesis(word);
+    return;
+  }
+
+  // Non-iOS: Edge TTS → Google Translate Audio → local Speech Synthesis
   edgeTTSSpeak(word)
     .catch(() => speakWordViaGoogleAudio(word))
     .catch(() => {
