@@ -573,10 +573,27 @@ function speakCurrentWord() {
   speakWord(word);
 }
 
+function findGermanVoiceNow() {
+  // Re-check voices right before speaking (handles async voice loading in Chrome)
+  if (!state.germanVoice) {
+    const voices = window.speechSynthesis.getVoices();
+    const scored = voices
+      .map((v) => ({ voice: v, score: scoreVoice(v) }))
+      .filter((e) => e.score > 0)
+      .sort((a, b) => b.score - a.score);
+    if (scored.length > 0) state.germanVoice = scored[0].voice;
+  }
+}
+
 function speakWordViaSynthesis(word) {
+  findGermanVoiceNow();
+  if (!state.germanVoice) {
+    // No German voice at all – don't speak with an English voice
+    return;
+  }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = state.germanVoice?.lang ?? "de-DE";
+  utterance.lang = state.germanVoice.lang;
   utterance.voice = state.germanVoice;
   // Use a slightly faster rate for low-quality local voices (0.5 sounds very
   // robotic). High-quality cloud voices handle slow rates well.
@@ -591,7 +608,7 @@ function speakWordViaAudio(word) {
     encodeURIComponent(word);
   const audio = new Audio(url);
   audio.addEventListener("error", () => {
-    // Audio fallback failed, fall back to speech synthesis
+    // Audio fallback failed, fall back to speech synthesis only if German voice exists
     speakWordViaSynthesis(word);
   });
   audio.play().catch(() => {
@@ -617,10 +634,12 @@ function speakWord(word) {
     return;
   }
 
+  findGermanVoiceNow();
+
   if (hasHighQualityVoice()) {
     speakWordViaSynthesis(word);
   } else {
-    // On Windows with only low-quality local voices, try audio fallback first
+    // No high-quality voice – try Google Translate audio first
     speakWordViaAudio(word);
   }
 }
