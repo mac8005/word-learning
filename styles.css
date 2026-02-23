@@ -129,6 +129,13 @@ input {
   background: #ffffff;
 }
 
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
 .label-row {
   display: flex;
   justify-content: space-between;

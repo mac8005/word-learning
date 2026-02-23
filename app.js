@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-23 09:31";
+const BUILD_DATE = "2026-02-23 09:44";
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
 const SNAKE_PLAY_BUNDLE_COST = 20;
