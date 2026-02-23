@@ -37,9 +37,10 @@
                   <button type="button" class="btn-micro" id="selectNoGroupsBtn">Keine</button>
                 </span>
               </span>
-              <select id="letterGroup" multiple>
-                <option value="__loading__" disabled selected>Wird geladen...</option>
-              </select>
+              <div class="letter-group-picker loading" id="letterGroupPicker">
+                <span class="lg-placeholder">Wörter laden…</span>
+              </div>
+              <span class="lg-count" id="letterGroupCount"></span>
             </label>
             <label>
               Set-Groesse

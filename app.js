@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-23 09:27";
+const BUILD_DATE = "2026-02-23 09:31";
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
 const SNAKE_PLAY_BUNDLE_COST = 20;
@@ -175,11 +175,12 @@ const state = {
 
 const els = {
   setupPanel: document.getElementById("setupPanel"),
+  letterGroupPicker: document.getElementById("letterGroupPicker"),
+  letterGroupCount: document.getElementById("letterGroupCount"),
   selectAllGroupsBtn: document.getElementById("selectAllGroupsBtn"),
   selectNoGroupsBtn: document.getElementById("selectNoGroupsBtn"),
   quizPanel: document.getElementById("quizPanel"),
   resultPanel: document.getElementById("resultPanel"),
-  letterGroup: document.getElementById("letterGroup"),
   setSize: document.getElementById("setSize"),
   startBtn: document.getElementById("startBtn"),
   speakBtn: document.getElementById("speakBtn"),
@@ -275,7 +276,6 @@ async function initialize() {
   if (buildEl) buildEl.textContent = "Build: " + BUILD_DATE;
 
   els.startBtn.disabled = true;
-  els.letterGroup.disabled = true;
   els.startBtn.textContent = "Wörter laden...";
 
   try {
@@ -283,7 +283,6 @@ async function initialize() {
     state.letterKeys = Object.keys(state.wordBank).sort((a, b) => a.localeCompare(b, "de-DE"));
     populateLetterGroupOptions();
     els.startBtn.disabled = false;
-    els.letterGroup.disabled = false;
     els.startBtn.textContent = "Mission starten";
     setFeedback(els.quizFeedback, "Drücke Start und höre genau zu.", "ok");
   } catch (error) {
@@ -300,10 +299,22 @@ async function initialize() {
 function bindEvents() {
   els.startBtn.addEventListener("click", startQuiz);
   els.selectAllGroupsBtn.addEventListener("click", () => {
-    for (const opt of els.letterGroup.options) opt.selected = true;
+    for (const pill of els.letterGroupPicker.querySelectorAll(".lg-pill")) {
+      pill.classList.add("selected");
+    }
+    updateLetterGroupCount();
   });
   els.selectNoGroupsBtn.addEventListener("click", () => {
-    for (const opt of els.letterGroup.options) opt.selected = false;
+    for (const pill of els.letterGroupPicker.querySelectorAll(".lg-pill")) {
+      pill.classList.remove("selected");
+    }
+    updateLetterGroupCount();
+  });
+  els.letterGroupPicker.addEventListener("click", (e) => {
+    const pill = e.target.closest(".lg-pill");
+    if (!pill) return;
+    pill.classList.toggle("selected");
+    updateLetterGroupCount();
   });
   els.speakBtn.addEventListener("click", speakCurrentWord);
   els.nextBtn.addEventListener("click", submitCurrentAnswer);
@@ -615,21 +626,38 @@ function normalizeDoubleS(value) {
 }
 
 function populateLetterGroupOptions() {
-  els.letterGroup.innerHTML = "";
+  els.letterGroupPicker.innerHTML = "";
+  els.letterGroupPicker.classList.remove("loading");
 
   for (const letter of state.letterKeys) {
-    const option = document.createElement("option");
-    option.value = letter;
-    option.textContent = letter;
-    option.selected = true;
-    els.letterGroup.appendChild(option);
+    const pill = document.createElement("span");
+    pill.className = "lg-pill selected";
+    pill.dataset.value = letter;
+    pill.textContent = letter;
+    els.letterGroupPicker.appendChild(pill);
+  }
+
+  updateLetterGroupCount();
+}
+
+function updateLetterGroupCount() {
+  const total = els.letterGroupPicker.querySelectorAll(".lg-pill").length;
+  const selected = els.letterGroupPicker.querySelectorAll(".lg-pill.selected").length;
+  if (total === 0) {
+    els.letterGroupCount.textContent = "";
+  } else if (selected === total) {
+    els.letterGroupCount.textContent = `Alle ${total} Gruppen ausgewählt`;
+  } else if (selected === 0) {
+    els.letterGroupCount.textContent = "Keine Gruppe ausgewählt";
+  } else {
+    els.letterGroupCount.textContent = `${selected} von ${total} Gruppen ausgewählt`;
   }
 }
 
 // ─── Quiz ───
 
 function startQuiz() {
-  const selectedGroups = [...els.letterGroup.selectedOptions].map(o => o.value);
+  const selectedGroups = [...els.letterGroupPicker.querySelectorAll(".lg-pill.selected")].map(p => p.dataset.value);
   if (!selectedGroups.length) {
     setFeedback(els.quizFeedback, "Bitte mindestens eine Buchstabengruppe auswählen.", "bad");
     return;

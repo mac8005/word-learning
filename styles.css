@@ -129,23 +129,6 @@ input {
   background: #ffffff;
 }
 
-select[multiple] {
-  padding: 0.25rem;
-  min-height: 7rem;
-  height: auto;
-}
-
-select[multiple] option {
-  padding: 0.3rem 0.6rem;
-  border-radius: 0.4rem;
-  cursor: pointer;
-}
-
-select[multiple] option:checked {
-  background: linear-gradient(90deg, #0f766e, #14b8a6);
-  color: white;
-}
-
 .label-row {
   display: flex;
   justify-content: space-between;
@@ -163,7 +146,7 @@ select[multiple] option:checked {
   background: #f1f5f9;
   color: #475569;
   border-radius: 0.4rem;
-  padding: 0.1rem 0.45rem;
+  padding: 0.1rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
@@ -174,6 +157,94 @@ select[multiple] option:checked {
 .btn-micro:hover {
   background: #e2e8f0;
   color: #1e293b;
+}
+
+/* ─── Letter group pill picker ─── */
+
+.letter-group-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  border: 2px solid #cbd5e1;
+  border-radius: 0.8rem;
+  background: #ffffff;
+  min-height: 2.8rem;
+  max-height: 8.5rem;
+  overflow-y: auto;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.letter-group-picker:focus-within,
+.letter-group-picker:hover {
+  border-color: #14b8a6;
+}
+
+.letter-group-picker.loading {
+  pointer-events: none;
+  align-items: center;
+}
+
+.lg-placeholder {
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.lg-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-family: "Baloo 2", cursive;
+  cursor: pointer;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  transition: all 0.14s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lg-pill:hover {
+  border-color: #14b8a6;
+  background: #f0fdfa;
+  color: #0f766e;
+  transform: translateY(-1px);
+}
+
+.lg-pill:active {
+  transform: translateY(0);
+}
+
+.lg-pill.selected {
+  background: linear-gradient(130deg, #0f766e, #14b8a6);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.4);
+}
+
+.lg-pill.selected::before {
+  content: "✓";
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+.lg-count {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+  text-align: right;
+  min-height: 1rem;
 }
 
 input:focus,
