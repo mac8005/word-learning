@@ -27,9 +27,13 @@
 
       <main class="layout">
         <section class="card panel" id="setupPanel">
-          <h2>Neues Wort-Set starten</h2>
+          <h2 id="setupTitle">Neues Wort-Set starten</h2>
+          <div class="mode-toggle-row">
+            <button type="button" class="mode-btn active" id="modeWordsBtn">📝 Wörter</button>
+            <button type="button" class="mode-btn" id="modeMathBtn">✕ Malrechnen</button>
+          </div>
           <div class="controls-grid">
-            <div class="field-group">
+            <div class="field-group" id="wordSetupGroup">
               <span class="label-row">
                 Buchstabengruppen
                 <span class="label-actions">
@@ -42,27 +46,42 @@
               </div>
               <span class="lg-count" id="letterGroupCount"></span>
             </div>
+            <div class="field-group hidden" id="mathSetupGroup">
+              <span class="label-row">
+                Einmaleins-Reihen
+                <span class="label-actions">
+                  <button type="button" class="btn-micro" id="selectAllTablesBtn">Alle</button>
+                  <button type="button" class="btn-micro" id="selectNoTablesBtn">Keine</button>
+                </span>
+              </span>
+              <div class="letter-group-picker" id="mathTablePicker"></div>
+              <span class="lg-count" id="mathTableCount"></span>
+            </div>
             <label>
               Set-Groesse
               <select id="setSize">
-                <option value="5">5 Wörter</option>
-                <option value="10" selected>10 Wörter</option>
-                <option value="15">15 Wörter</option>
-                <option value="20">20 Wörter</option>
+                <option value="5">5 Aufgaben</option>
+                <option value="10" selected>10 Aufgaben</option>
+                <option value="15">15 Aufgaben</option>
+                <option value="20">20 Aufgaben</option>
               </select>
             </label>
           </div>
           <button id="startBtn" class="btn primary">Mission starten</button>
-          <p class="small-note">Tipp: Gross- und Kleinschreibung wird genau geprüft.</p>
+          <p class="small-note" id="wordModeNote">Tipp: Gross- und Kleinschreibung wird genau geprüft.</p>
+          <p class="small-note hidden" id="mathModeNote">Tipp: Gib die Zahl als Antwort ein.</p>
         </section>
 
         <section class="card panel hidden" id="quizPanel">
           <div class="quiz-top">
-            <h2>Schreibe, was du hörst</h2>
+            <h2 id="quizTitle">Schreibe, was du hörst</h2>
             <p id="progressText">Wort 1 / 10</p>
           </div>
           <div class="progress-track">
             <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="math-problem hidden" id="mathProblemDisplay">
+            <span class="math-equation" id="mathEquationText"></span>
           </div>
           <div class="letter-slots" id="letterSlots"></div>
           <div class="quiz-controls">
