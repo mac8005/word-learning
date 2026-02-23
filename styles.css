@@ -301,19 +301,41 @@ select:focus {
   color: #e0e7ff;
 }
 
-.arcade-card h2 {
+.arcade-title {
   color: #c7d2fe;
+  margin: 0;
 }
 
 .arcade-card .small-note {
   color: #a5b4fc;
+  margin: 0;
 }
 
-.arcade-header {
+.arcade-games {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.arcade-game-row {
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
+  padding-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.arcade-game-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
+}
+
+.arcade-game-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #c7d2fe;
 }
 
 .arcade-actions {
@@ -659,6 +681,90 @@ select:focus {
   color: #fb7185;
 }
 
+/* ─── Snake Modal theme ─── */
+
+.snake-theme .tetris-modal {
+  background: linear-gradient(160deg, #031a0b, #0a2d12, #021209);
+  border-color: #16a34a;
+  box-shadow:
+    0 0 40px rgba(22, 163, 74, 0.3),
+    0 0 80px rgba(22, 163, 74, 0.1),
+    0 25px 60px rgba(0, 0, 0, 0.5);
+}
+
+.snake-theme .tetris-modal-header {
+  border-bottom-color: rgba(22, 163, 74, 0.3);
+}
+
+.snake-theme .tetris-stat-box {
+  border-color: rgba(22, 163, 74, 0.25);
+}
+
+.snake-theme .tetris-stat-label {
+  color: #4ade80;
+}
+
+.snake-theme .tetris-badge {
+  background: rgba(22, 163, 74, 0.2);
+  border-color: rgba(22, 163, 74, 0.4);
+}
+
+.snake-theme .tetris-glow {
+  box-shadow:
+    0 0 20px rgba(22, 163, 74, 0.35),
+    0 0 50px rgba(22, 163, 74, 0.1);
+}
+
+.snake-theme .tetris-close-btn {
+  color: #86efac;
+}
+
+.snake-title {
+  background: linear-gradient(90deg, #86efac, #4ade80, #22c55e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.snake-canvas {
+  border-color: #15803d !important;
+  background: linear-gradient(180deg, #021209, #0a2010) !important;
+  width: 280px;
+  height: 280px;
+}
+
+.snake-stage {
+  align-items: center;
+}
+
+/* ─── Snake touch D-Pad ─── */
+
+.snake-dpad {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.snake-touch-btn {
+  border-color: rgba(22, 163, 74, 0.4) !important;
+  background: rgba(22, 163, 74, 0.15) !important;
+  color: #86efac !important;
+}
+
+.snake-touch-btn:active {
+  background: rgba(22, 163, 74, 0.4) !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .snake-dpad {
+    display: flex;
+  }
+}
+
 /* ─── Celebration ─── */
 
 .celebration {
@@ -830,5 +936,22 @@ body.modal-open {
     width: 2.8rem;
     height: 2.8rem;
     font-size: 1.2rem;
+  }
+
+  .snake-canvas {
+    width: auto !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+
+  .snake-stage {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .snake-dpad {
+    gap: 0.15rem;
+    flex-shrink: 0;
   }
 }

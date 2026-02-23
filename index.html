@@ -19,7 +19,7 @@
           <p class="eyebrow">Lernspiel</p>
           <h1>Wort-Galaxie Trainer</h1>
           <p class="subtitle">
-            Höre genau zu, tippe das Wort und sammle Münzen für Tetris.
+            Höre genau zu, tippe das Wort und sammle Münzen für Bonus-Spiele.
           </p>
         </div>
         <div class="coin-badge" id="coinBadge">Münzen: <strong id="coinCount">0</strong></div>
@@ -90,20 +90,32 @@
         </section>
 
         <section class="card panel arcade-card" id="miniGamePanel">
-          <div class="arcade-header">
-            <h2>Bonus-Spiel: Tetris</h2>
-            <span class="ticket-badge">Spiele: <strong id="tetrisPlays">0</strong></span>
-          </div>
-          <p class="small-note">
-            Trainiere Wörter, sammle 20 Münzen und spiele 1 Runde Tetris.
-          </p>
-          <div class="arcade-actions">
-            <button id="buyTetrisPlaysBtn" class="btn arcade-buy">
-              1 Spiel für 20 Münzen kaufen
-            </button>
-            <button id="openTetrisBtn" class="btn arcade-play">
-              Tetris öffnen
-            </button>
+          <h2 class="arcade-title">Bonus-Spiele</h2>
+          <div class="arcade-games">
+            <!-- Tetris -->
+            <div class="arcade-game-row">
+              <div class="arcade-game-header">
+                <span class="arcade-game-name">🎮 Tetris</span>
+                <span class="ticket-badge">Spiele: <strong id="tetrisPlays">0</strong></span>
+              </div>
+              <p class="small-note">Trainiere Wörter, sammle 20 Münzen und spiele 1 Runde.</p>
+              <div class="arcade-actions">
+                <button id="buyTetrisPlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
+                <button id="openTetrisBtn" class="btn arcade-play">Tetris öffnen</button>
+              </div>
+            </div>
+            <!-- Snake -->
+            <div class="arcade-game-row">
+              <div class="arcade-game-header">
+                <span class="arcade-game-name">🐍 Snake</span>
+                <span class="ticket-badge">Spiele: <strong id="snakePlays">0</strong></span>
+              </div>
+              <p class="small-note">Fress Äpfel, werde länger, vermeide dich selbst.</p>
+              <div class="arcade-actions">
+                <button id="buySnakePlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
+                <button id="openSnakeBtn" class="btn arcade-play">Snake öffnen</button>
+              </div>
+            </div>
           </div>
           <p id="miniGameFeedback" class="feedback"></p>
         </section>
@@ -136,6 +148,10 @@
               <div class="tetris-stat-box">
                 <span class="tetris-stat-label">Level</span>
                 <span class="tetris-stat-value" id="tetrisLevel">1</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Rekord</span>
+                <span class="tetris-stat-value" id="tetrisHighscore">0</span>
               </div>
               <div class="tetris-stat-box next-piece-box">
                 <span class="tetris-stat-label">Nächstes</span>
@@ -172,6 +188,68 @@
           </div>
           <p class="tetris-hint tetris-hint-keyboard">← → bewegen &middot; ↑ drehen &middot; ↓ schneller &middot; Leertaste fallen</p>
           <p id="tetrisModalFeedback" class="feedback tetris-feedback"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Snake Modal -->
+    <div class="tetris-modal-backdrop hidden snake-theme" id="snakeModalBackdrop">
+      <div class="tetris-modal" id="snakeModal">
+        <div class="tetris-modal-header">
+          <h2 class="tetris-modal-title snake-title">🐍 Snake</h2>
+          <div class="tetris-modal-badges">
+            <span class="tetris-badge coin-inline" id="snakeCoins">Münzen: 0</span>
+            <span class="tetris-badge ticket-inline">Spiele: <strong id="snakePlaysModal">0</strong></span>
+          </div>
+          <button class="tetris-close-btn" id="closeSnakeBtn" aria-label="Schliessen">&times;</button>
+        </div>
+        <div class="tetris-modal-body">
+          <div class="tetris-stage snake-stage">
+            <div class="tetris-stats-col">
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Punkte</span>
+                <span class="tetris-stat-value" id="snakeScore">0</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Level</span>
+                <span class="tetris-stat-value" id="snakeLevel">1</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Länge</span>
+                <span class="tetris-stat-value" id="snakeLength">3</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Rekord</span>
+                <span class="tetris-stat-value" id="snakeHighscore">0</span>
+              </div>
+            </div>
+            <div class="tetris-canvas-wrapper">
+              <canvas
+                id="snakeCanvas"
+                class="tetris-canvas snake-canvas"
+                width="280"
+                height="280"
+                aria-label="Snake Spielfeld"
+              ></canvas>
+              <div class="tetris-glow"></div>
+            </div>
+          </div>
+          <div class="tetris-controls">
+            <button id="startSnakeGameBtn" class="btn tetris-btn-start">Snake starten</button>
+            <button id="pauseSnakeGameBtn" class="btn tetris-btn-pause">Pause</button>
+          </div>
+          <div class="snake-dpad" id="snakeTouchControls">
+            <div class="touch-row">
+              <button class="touch-btn snake-touch-btn" id="snakeTouchUp" aria-label="Hoch">&uarr;</button>
+            </div>
+            <div class="touch-row">
+              <button class="touch-btn snake-touch-btn" id="snakeTouchLeft" aria-label="Links">&larr;</button>
+              <button class="touch-btn snake-touch-btn" id="snakeTouchDown" aria-label="Runter">&darr;</button>
+              <button class="touch-btn snake-touch-btn" id="snakeTouchRight" aria-label="Rechts">&rarr;</button>
+            </div>
+          </div>
+          <p class="tetris-hint tetris-hint-keyboard">← → ↑ ↓ / WASD bewegen &middot; Leertaste Pause</p>
+          <p id="snakeModalFeedback" class="feedback tetris-feedback"></p>
         </div>
       </div>
     </div>

@@ -7,7 +7,17 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-23 08:59";
+const BUILD_DATE = "2026-02-23 09:19";
+
+const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
+const SNAKE_PLAY_BUNDLE_COST = 20;
+const SNAKE_PLAY_BUNDLE_AMOUNT = 1;
+const SNAKE_COLS = 20;
+const SNAKE_ROWS = 20;
+const BASE_SNAKE_MS = 190;
+const SNAKE_LEVEL_SPEEDS = [190,165,143,124,108,95,84,75,68,62,57,53,50,47,45];
+const TETRIS_HIGHSCORE_KEY = "word_galaxy_tetris_highscore";
+const SNAKE_HIGHSCORE_KEY = "word_galaxy_snake_highscore";
 
 const SHAPES = {
   I: [
@@ -83,6 +93,30 @@ const TETRIS_BASS = [
   [110,4],[82.41,4],
 ];
 
+// Snake theme – upbeat 8-bit melody [frequency, eighthNotes]
+const SNAKE_MELODY = [
+  [659,1],[784,1],[1047,2],[784,1],[659,1],
+  [523,2],[523,1],[659,1],[784,2],
+  [698,1],[880,1],[1047,1],[880,1],[698,2],
+  [587,4],
+  [523,1],[659,1],[784,1],[1047,2],[784,1],
+  [659,2],[523,2],[392,2],
+  [440,1],[587,1],[698,1],[880,2],[698,1],
+  [587,2],[440,2],[440,4],
+];
+
+// Snake theme – bass voice [frequency, eighthNotes]
+const SNAKE_BASS = [
+  [131,4],[165,4],
+  [131,4],[175,4],
+  [147,4],[196,4],
+  [175,4],[131,4],
+  [131,4],[165,4],
+  [131,4],[131,4],
+  [110,4],[138,4],
+  [147,4],[131,4],
+];
+
 const state = {
   wordBank: {},
   letterKeys: [],
@@ -93,6 +127,9 @@ const state = {
   correctionBonusGiven: false,
   coins: 0,
   tetrisPlays: 0,
+  snakePlays: 0,
+  tetrisHighscore: 0,
+  snakeHighscore: 0,
   germanVoice: null,
   audioCtx: null,
   savedScrollY: 0,
@@ -108,6 +145,27 @@ const state = {
     dropMs: BASE_DROP_MS,
     lastDropMs: 0,
     rafId: 0,
+    musicTimerId: 0,
+    musicGain: null,
+    musicMelodyIdx: 0,
+    musicBassIdx: 0,
+  },
+  snake: {
+    active: false,
+    paused: false,
+    body: [],           // [{x,y}], [0]=Kopf
+    dir: {x:1, y:0},   // aktuelle Richtung
+    nextDir: {x:1, y:0}, // gepufferte Richtung
+    food: null,         // {x,y}
+    bonusFood: null,    // {x,y} optional
+    bonusFoodTick: 0,   // eaten-Zähler bei dem Bonus abläuft
+    score: 0,
+    eaten: 0,
+    level: 1,
+    tickMs: BASE_SNAKE_MS,
+    lastTickMs: 0,
+    rafId: 0,
+    particles: [],      // [{x,y,vx,vy,life,color}]
     musicTimerId: 0,
     musicGain: null,
     musicMelodyIdx: 0,
@@ -155,28 +213,61 @@ const els = {
   startMiniGameBtn: document.getElementById("startMiniGameBtn"),
   pauseMiniGameBtn: document.getElementById("pauseMiniGameBtn"),
   tetrisModalFeedback: document.getElementById("tetrisModalFeedback"),
-  // Touch controls
+  // Touch controls (Tetris)
   touchLeft: document.getElementById("touchLeft"),
   touchRight: document.getElementById("touchRight"),
   touchRotate: document.getElementById("touchRotate"),
   touchDown: document.getElementById("touchDown"),
   touchDrop: document.getElementById("touchDrop"),
+  // Tetris highscore
+  tetrisHighscore: document.getElementById("tetrisHighscore"),
+  // Snake panel
+  snakePlays: document.getElementById("snakePlays"),
+  buySnakePlaysBtn: document.getElementById("buySnakePlaysBtn"),
+  openSnakeBtn: document.getElementById("openSnakeBtn"),
+  // Snake modal
+  snakeModalBackdrop: document.getElementById("snakeModalBackdrop"),
+  closeSnakeBtn: document.getElementById("closeSnakeBtn"),
+  snakeCoins: document.getElementById("snakeCoins"),
+  snakePlaysModal: document.getElementById("snakePlaysModal"),
+  snakeScore: document.getElementById("snakeScore"),
+  snakeLevel: document.getElementById("snakeLevel"),
+  snakeLength: document.getElementById("snakeLength"),
+  snakeHighscore: document.getElementById("snakeHighscore"),
+  snakeCanvas: document.getElementById("snakeCanvas"),
+  startSnakeGameBtn: document.getElementById("startSnakeGameBtn"),
+  pauseSnakeGameBtn: document.getElementById("pauseSnakeGameBtn"),
+  snakeModalFeedback: document.getElementById("snakeModalFeedback"),
+  snakeTouchUp: document.getElementById("snakeTouchUp"),
+  snakeTouchDown: document.getElementById("snakeTouchDown"),
+  snakeTouchLeft: document.getElementById("snakeTouchLeft"),
+  snakeTouchRight: document.getElementById("snakeTouchRight"),
 };
 
 const tetrisCtx = els.tetrisCanvas.getContext("2d");
 const nextCtx = els.nextPieceCanvas.getContext("2d");
+const snakeCtx = els.snakeCanvas.getContext("2d");
 
 initialize();
 
 async function initialize() {
   state.coins = loadCoins();
   state.tetrisPlays = loadTetrisPlays();
+  state.snakePlays = loadSnakePlays();
+  state.tetrisHighscore = loadTetrisHighscore();
+  state.snakeHighscore = loadSnakeHighscore();
   updateCoinDisplay();
   updateTetrisPlayDisplay();
+  updateSnakePlaysDisplay();
+  updateTetrisHighscoreDisplay();
+  updateSnakeHighscoreDisplay();
   updateTetrisStats();
+  updateSnakeStats();
   bindEvents();
+  setupSnakeEventListeners();
   setupSpeechVoices();
   drawTetris("TETRIS");
+  drawSnakeGame("SNAKE");
 
   const buildEl = document.getElementById("buildInfo");
   if (buildEl) buildEl.textContent = "Build: " + BUILD_DATE;
@@ -365,6 +456,7 @@ function openTetrisModal() {
   els.tetrisModalBackdrop.classList.remove("hidden");
   updateCoinDisplay();
   updateTetrisPlayDisplay();
+  updateTetrisHighscoreDisplay();
   drawTetris(state.tetris.active ? "" : "TETRIS");
   drawNextPiece();
   setFeedback(els.tetrisModalFeedback, "", "ok");
@@ -376,6 +468,29 @@ function closeTetrisModal() {
     return;
   }
   els.tetrisModalBackdrop.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  document.body.style.top = "";
+  window.scrollTo(0, state.savedScrollY || 0);
+}
+
+function openSnakeModal() {
+  state.savedScrollY = window.scrollY;
+  document.body.classList.add("modal-open");
+  document.body.style.top = `-${state.savedScrollY}px`;
+  els.snakeModalBackdrop.classList.remove("hidden");
+  updateCoinDisplay();
+  updateSnakePlaysDisplay();
+  updateSnakeHighscoreDisplay();
+  drawSnakeGame(state.snake.active ? "" : "SNAKE");
+  setFeedback(els.snakeModalFeedback, "", "ok");
+}
+
+function closeSnakeModal() {
+  if (state.snake.active) {
+    setFeedback(els.snakeModalFeedback, "Beende erst das Spiel.", "bad");
+    return;
+  }
+  els.snakeModalBackdrop.classList.add("hidden");
   document.body.classList.remove("modal-open");
   document.body.style.top = "";
   window.scrollTo(0, state.savedScrollY || 0);
@@ -879,6 +994,7 @@ function addCoins(delta) {
 function updateCoinDisplay() {
   els.coinCount.textContent = String(state.coins);
   els.tetrisCoins.textContent = `Münzen: ${state.coins}`;
+  els.snakeCoins.textContent = `Münzen: ${state.coins}`;
 }
 
 function loadTetrisPlays() {
@@ -896,6 +1012,46 @@ function saveTetrisPlays() {
 function updateTetrisPlayDisplay() {
   els.tetrisPlays.textContent = String(state.tetrisPlays);
   els.tetrisPlaysModal.textContent = String(state.tetrisPlays);
+}
+
+function loadTetrisHighscore() {
+  const parsed = Number.parseInt(window.localStorage.getItem(TETRIS_HIGHSCORE_KEY) ?? "0", 10);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function saveTetrisHighscore() {
+  window.localStorage.setItem(TETRIS_HIGHSCORE_KEY, String(state.tetrisHighscore));
+}
+
+function updateTetrisHighscoreDisplay() {
+  els.tetrisHighscore.textContent = String(state.tetrisHighscore);
+}
+
+function loadSnakePlays() {
+  const parsed = Number.parseInt(window.localStorage.getItem(SNAKE_PLAYS_STORAGE_KEY) ?? "0", 10);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function saveSnakePlays() {
+  window.localStorage.setItem(SNAKE_PLAYS_STORAGE_KEY, String(state.snakePlays));
+}
+
+function updateSnakePlaysDisplay() {
+  els.snakePlays.textContent = String(state.snakePlays);
+  els.snakePlaysModal.textContent = String(state.snakePlays);
+}
+
+function loadSnakeHighscore() {
+  const parsed = Number.parseInt(window.localStorage.getItem(SNAKE_HIGHSCORE_KEY) ?? "0", 10);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function saveSnakeHighscore() {
+  window.localStorage.setItem(SNAKE_HIGHSCORE_KEY, String(state.snakeHighscore));
+}
+
+function updateSnakeHighscoreDisplay() {
+  els.snakeHighscore.textContent = String(state.snakeHighscore);
 }
 
 function setFeedback(el, text, type) {
@@ -925,6 +1081,29 @@ function buyTetrisPlays() {
   setFeedback(
     els.miniGameFeedback,
     `1 Tetris-Spiel gekauft (−${TETRIS_PLAY_BUNDLE_COST} Münzen). Verbleibend: ${state.coins} Münzen.`,
+    "ok"
+  );
+  playSfx("buy");
+}
+
+function buySnakePlays() {
+  if (state.coins < SNAKE_PLAY_BUNDLE_COST) {
+    setFeedback(
+      els.miniGameFeedback,
+      `${SNAKE_PLAY_BUNDLE_COST} Münzen nötig. Erst Wörter trainieren.`,
+      "bad"
+    );
+    playSfx("error");
+    return;
+  }
+
+  addCoins(-SNAKE_PLAY_BUNDLE_COST);
+  state.snakePlays += SNAKE_PLAY_BUNDLE_AMOUNT;
+  saveSnakePlays();
+  updateSnakePlaysDisplay();
+  setFeedback(
+    els.miniGameFeedback,
+    `1 Snake-Spiel gekauft (−${SNAKE_PLAY_BUNDLE_COST} Münzen). Verbleibend: ${state.coins} Münzen.`,
     "ok"
   );
   playSfx("buy");
@@ -1200,16 +1379,228 @@ function endTetrisGame() {
   stopTetrisMusic();
   drawTetris("ENDE");
 
-  setFeedback(
-    els.tetrisModalFeedback,
-    `Tetris vorbei! Punkte: ${state.tetris.score}, Linien: ${state.tetris.lines}. Trainiere Wörter für neue Spiele!`,
-    "ok"
-  );
+  let feedback = `Tetris vorbei! Punkte: ${state.tetris.score}, Linien: ${state.tetris.lines}. Trainiere Wörter für neue Spiele!`;
+  if (state.tetris.score > 0 && state.tetris.score > state.tetrisHighscore) {
+    state.tetrisHighscore = state.tetris.score;
+    saveTetrisHighscore();
+    updateTetrisHighscoreDisplay();
+    feedback += " Neuer Rekord!";
+  }
+
+  setFeedback(els.tetrisModalFeedback, feedback, "ok");
 
   if (state.tetris.lines >= 4) {
     spawnCelebration();
   }
   playSfx("gameOver");
+}
+
+// ─── Snake game ───
+
+function startSnakeGame() {
+  if (state.snake.active) {
+    setFeedback(els.snakeModalFeedback, "Snake läuft bereits.", "bad");
+    return;
+  }
+
+  if (state.snakePlays < 1) {
+    setFeedback(
+      els.snakeModalFeedback,
+      "Keine Spiele übrig. Kaufe 1 Spiel für 20 Münzen.",
+      "bad"
+    );
+    playSfx("error");
+    return;
+  }
+
+  state.snakePlays -= 1;
+  saveSnakePlays();
+  updateSnakePlaysDisplay();
+
+  initSnakeRound();
+  state.snake.active = true;
+  state.snake.paused = false;
+  state.snake.lastTickMs = performance.now();
+  setFeedback(els.snakeModalFeedback, "Snake gestartet. Viel Spass!", "ok");
+  playSfx("start");
+  startSnakeMusic();
+  state.snake.rafId = requestAnimationFrame(runSnakeFrame);
+}
+
+function initSnakeRound() {
+  const midX = Math.floor(SNAKE_COLS / 2);
+  const midY = Math.floor(SNAKE_ROWS / 2);
+  state.snake.body = [
+    {x: midX, y: midY},
+    {x: midX - 1, y: midY},
+    {x: midX - 2, y: midY},
+  ];
+  state.snake.dir = {x: 1, y: 0};
+  state.snake.nextDir = {x: 1, y: 0};
+  state.snake.score = 0;
+  state.snake.eaten = 0;
+  state.snake.level = 1;
+  state.snake.tickMs = BASE_SNAKE_MS;
+  state.snake.bonusFood = null;
+  state.snake.bonusFoodTick = 0;
+  state.snake.particles = [];
+  state.snake.food = placeFood(false);
+  updateSnakeStats();
+  drawSnakeGame();
+}
+
+function placeFood(isBonus) {
+  const occupied = new Set(state.snake.body.map(s => `${s.x},${s.y}`));
+  if (state.snake.food) occupied.add(`${state.snake.food.x},${state.snake.food.y}`);
+  if (state.snake.bonusFood) occupied.add(`${state.snake.bonusFood.x},${state.snake.bonusFood.y}`);
+
+  const candidates = [];
+  for (let y = 0; y < SNAKE_ROWS; y++) {
+    for (let x = 0; x < SNAKE_COLS; x++) {
+      if (!occupied.has(`${x},${y}`)) candidates.push({x, y});
+    }
+  }
+
+  if (!candidates.length) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function toggleSnakePause() {
+  if (!state.snake.active) {
+    setFeedback(els.snakeModalFeedback, "Starte zuerst eine Snake-Runde.", "bad");
+    return;
+  }
+  state.snake.paused = !state.snake.paused;
+  if (state.snake.paused) {
+    pauseSnakeMusic();
+    setFeedback(els.snakeModalFeedback, "Snake pausiert.", "ok");
+    drawSnakeGame("PAUSE");
+  } else {
+    resumeSnakeMusic();
+    setFeedback(els.snakeModalFeedback, "Snake läuft weiter.", "ok");
+    state.snake.lastTickMs = performance.now();
+    state.snake.rafId = requestAnimationFrame(runSnakeFrame);
+  }
+}
+
+function runSnakeFrame(ts) {
+  if (!state.snake.active) return;
+  if (state.snake.paused) {
+    drawSnakeGame("PAUSE");
+    return;
+  }
+
+  if (ts - state.snake.lastTickMs >= state.snake.tickMs) {
+    moveSnake();
+    state.snake.lastTickMs = ts;
+  }
+
+  drawSnakeGame();
+  state.snake.rafId = requestAnimationFrame(runSnakeFrame);
+}
+
+function moveSnake() {
+  state.snake.dir = state.snake.nextDir;
+  const head = state.snake.body[0];
+  const newHead = {
+    x: head.x + state.snake.dir.x,
+    y: head.y + state.snake.dir.y,
+  };
+
+  // Wall collision
+  if (newHead.x < 0 || newHead.x >= SNAKE_COLS || newHead.y < 0 || newHead.y >= SNAKE_ROWS) {
+    endSnakeGame();
+    return;
+  }
+
+  // Self collision
+  if (state.snake.body.some(s => s.x === newHead.x && s.y === newHead.y)) {
+    endSnakeGame();
+    return;
+  }
+
+  state.snake.body.unshift(newHead);
+
+  // Check bonus food
+  if (state.snake.bonusFood && newHead.x === state.snake.bonusFood.x && newHead.y === state.snake.bonusFood.y) {
+    state.snake.score += 50 * state.snake.level;
+    state.snake.bonusFood = null;
+    spawnSnakeParticles(newHead.x, newHead.y, "#fbbf24");
+    spawnCelebration();
+    updateSnakeStats();
+    return; // grow: don't remove tail
+  }
+
+  // Check bonus food expiry
+  if (state.snake.bonusFood && state.snake.eaten >= state.snake.bonusFoodTick) {
+    state.snake.bonusFood = null;
+  }
+
+  // Check normal food
+  if (state.snake.food && newHead.x === state.snake.food.x && newHead.y === state.snake.food.y) {
+    state.snake.score += 10 * state.snake.level;
+    state.snake.eaten += 1;
+    spawnSnakeParticles(newHead.x, newHead.y, "#ef4444");
+
+    // Level up every 5 eaten
+    if (state.snake.eaten % 5 === 0) {
+      state.snake.level += 1;
+      const idx = Math.min(state.snake.level - 1, SNAKE_LEVEL_SPEEDS.length - 1);
+      state.snake.tickMs = SNAKE_LEVEL_SPEEDS[idx];
+    }
+
+    // Spawn bonus food every 10 eaten
+    if (state.snake.eaten % 10 === 0) {
+      state.snake.bonusFood = placeFood(true);
+      state.snake.bonusFoodTick = state.snake.eaten + 8;
+    }
+
+    state.snake.food = placeFood(false);
+    updateSnakeStats();
+    return; // grow: don't remove tail
+  }
+
+  // Normal move: remove tail
+  state.snake.body.pop();
+}
+
+function endSnakeGame() {
+  state.snake.active = false;
+  state.snake.paused = false;
+  cancelAnimationFrame(state.snake.rafId);
+  stopSnakeMusic();
+  drawSnakeGame("ENDE");
+
+  let feedback = `Snake vorbei! Punkte: ${state.snake.score}, Länge: ${state.snake.body.length}. Trainiere Wörter für neue Spiele!`;
+  if (state.snake.score > 0 && state.snake.score > state.snakeHighscore) {
+    state.snakeHighscore = state.snake.score;
+    saveSnakeHighscore();
+    updateSnakeHighscoreDisplay();
+    feedback += " Neuer Rekord!";
+  }
+
+  setFeedback(els.snakeModalFeedback, feedback, "ok");
+
+  if (state.snake.score >= 100) {
+    spawnCelebration();
+  }
+  playSfx("gameOver");
+}
+
+function spawnSnakeParticles(gx, gy, color) {
+  const cell = Math.floor(Math.min(els.snakeCanvas.width, els.snakeCanvas.height) / SNAKE_COLS);
+  const px = gx * cell + cell / 2;
+  const py = gy * cell + cell / 2;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    state.snake.particles.push({
+      x: px, y: py,
+      vx: Math.cos(angle) * (2 + Math.random() * 2),
+      vy: Math.sin(angle) * (2 + Math.random() * 2),
+      life: 1,
+      color,
+    });
+  }
 }
 
 // ─── Tetris rendering ───
@@ -1218,6 +1609,171 @@ function updateTetrisStats() {
   els.tetrisScore.textContent = String(state.tetris.score);
   els.tetrisLines.textContent = String(state.tetris.lines);
   els.tetrisLevel.textContent = String(state.tetris.level);
+}
+
+// ─── Snake rendering ───
+
+function updateSnakeStats() {
+  els.snakeScore.textContent = String(state.snake.score);
+  els.snakeLevel.textContent = String(state.snake.level);
+  els.snakeLength.textContent = String(state.snake.body.length);
+}
+
+function drawSnakeGame(overlayText = "") {
+  const canvas = els.snakeCanvas;
+  const ctx = snakeCtx;
+  const cell = Math.floor(Math.min(canvas.width, canvas.height) / SNAKE_COLS);
+  const W = canvas.width;
+  const H = canvas.height;
+  const pad = 1;
+
+  // Background
+  ctx.fillStyle = "#021209";
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle grid
+  ctx.strokeStyle = "rgba(22, 163, 74, 0.08)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= SNAKE_COLS; x++) {
+    ctx.beginPath();
+    ctx.moveTo(x * cell, 0);
+    ctx.lineTo(x * cell, H);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= SNAKE_ROWS; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0, y * cell);
+    ctx.lineTo(W, y * cell);
+    ctx.stroke();
+  }
+
+  // Draw snake body (tail → head for gradient layering)
+  const body = state.snake.body;
+  for (let i = body.length - 1; i >= 0; i--) {
+    const seg = body[i];
+    const t = body.length > 1 ? i / (body.length - 1) : 0; // 0=head, 1=tail
+    const g = Math.round(163 - t * 80);
+    const r = Math.round(22 + t * 10);
+    ctx.fillStyle = `rgb(${r}, ${g}, 74)`;
+
+    const sx = seg.x * cell;
+    const sy = seg.y * cell;
+    ctx.fillRect(sx + pad, sy + pad, cell - 2 * pad, cell - 2 * pad);
+
+    // Connector to next segment (fills the gap between cells)
+    if (i < body.length - 1) {
+      const next = body[i + 1];
+      if (next.x === seg.x + 1) {
+        ctx.fillRect(sx + cell - pad, sy + pad, 2 * pad, cell - 2 * pad);
+      } else if (next.x === seg.x - 1) {
+        ctx.fillRect(sx, sy + pad, 2 * pad, cell - 2 * pad);
+      } else if (next.y === seg.y + 1) {
+        ctx.fillRect(sx + pad, sy + cell - pad, cell - 2 * pad, 2 * pad);
+      } else if (next.y === seg.y - 1) {
+        ctx.fillRect(sx + pad, sy, cell - 2 * pad, 2 * pad);
+      }
+    }
+  }
+
+  // Snake head eyes + pupils
+  if (body.length > 0) {
+    const head = body[0];
+    const dir = state.snake.dir;
+    const hx = head.x * cell;
+    const hy = head.y * cell;
+    const eyeR = Math.max(1.5, cell * 0.15);
+    let e1x, e1y, e2x, e2y;
+
+    if (dir.x === 1) {
+      e1x = hx + cell * 0.75; e1y = hy + cell * 0.3;
+      e2x = hx + cell * 0.75; e2y = hy + cell * 0.7;
+    } else if (dir.x === -1) {
+      e1x = hx + cell * 0.25; e1y = hy + cell * 0.3;
+      e2x = hx + cell * 0.25; e2y = hy + cell * 0.7;
+    } else if (dir.y === -1) {
+      e1x = hx + cell * 0.3; e1y = hy + cell * 0.25;
+      e2x = hx + cell * 0.7; e2y = hy + cell * 0.25;
+    } else {
+      e1x = hx + cell * 0.3; e1y = hy + cell * 0.75;
+      e2x = hx + cell * 0.7; e2y = hy + cell * 0.75;
+    }
+
+    ctx.fillStyle = "white";
+    ctx.beginPath(); ctx.arc(e1x, e1y, eyeR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2x, e2y, eyeR, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#030712";
+    ctx.beginPath(); ctx.arc(e1x + dir.x, e1y + dir.y, eyeR * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e2x + dir.x, e2y + dir.y, eyeR * 0.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Normal food (red circle with shine)
+  if (state.snake.food) {
+    const f = state.snake.food;
+    const fx = f.x * cell + cell / 2;
+    const fy = f.y * cell + cell / 2;
+    const fr = cell * 0.38;
+    ctx.beginPath();
+    ctx.arc(fx, fy, fr, 0, Math.PI * 2);
+    ctx.fillStyle = "#ef4444";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(fx - fr * 0.25, fy - fr * 0.3, fr * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fill();
+  }
+
+  // Bonus food (gold, pulsing with star)
+  if (state.snake.bonusFood) {
+    const b = state.snake.bonusFood;
+    const bx = b.x * cell + cell / 2;
+    const by = b.y * cell + cell / 2;
+    const pulse = 1 + 0.15 * Math.sin(performance.now() / 200);
+    const br = cell * 0.4 * pulse;
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fillStyle = "#fbbf24";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(bx - br * 0.25, by - br * 0.3, br * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fill();
+    ctx.fillStyle = "#92400e";
+    ctx.font = `bold ${Math.max(8, Math.floor(cell * 0.5))}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("★", bx, by);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  // Particles
+  for (let i = state.snake.particles.length - 1; i >= 0; i--) {
+    const p = state.snake.particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 0.07;
+    if (p.life <= 0) {
+      state.snake.particles.splice(i, 1);
+      continue;
+    }
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Overlay (SNAKE / PAUSE / ENDE)
+  if (overlayText) {
+    ctx.fillStyle = "rgba(2, 18, 9, 0.74)";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#4ade80";
+    ctx.font = "700 34px 'Baloo 2'";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(overlayText, W / 2, H / 2);
+    ctx.textBaseline = "alphabetic";
+  }
 }
 
 function drawTetris(overlayText = "") {
@@ -1528,6 +2084,212 @@ function stopTetrisMusic() {
   }
   state.tetris.musicMelodyIdx = 0;
   state.tetris.musicBassIdx = 0;
+}
+
+// ─── Snake music ───
+
+function scheduleSnakeMusicNote(freq, when, dur, type, vol) {
+  const ctx = state.audioCtx;
+  const dest = state.snake.musicGain;
+  if (!ctx || !dest) return;
+
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+
+  const end = when + dur;
+  const attack = when + 0.015;
+  const release = Math.max(attack + 0.001, end - 0.02);
+
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(vol, attack);
+  g.gain.setValueAtTime(vol, release);
+  g.gain.exponentialRampToValueAtTime(0.0001, end);
+
+  osc.connect(g).connect(dest);
+  osc.start(when);
+  osc.stop(end + 0.01);
+}
+
+function runSnakeMusicScheduler() {
+  const ctx = state.audioCtx;
+  if (!ctx || !state.snake.musicGain) return;
+
+  const BPM = 168;
+  const eighth = 60 / BPM / 2;
+  let melTime = ctx.currentTime + 0.05;
+  let bassTime = ctx.currentTime + 0.05;
+
+  function tick() {
+    if (!state.snake.musicGain) return;
+
+    while (melTime < ctx.currentTime + 0.25) {
+      const [f, d] = SNAKE_MELODY[state.snake.musicMelodyIdx];
+      const dur = d * eighth;
+      if (f > 0) scheduleSnakeMusicNote(f, melTime, dur * 0.9, "square", 0.010);
+      melTime += dur;
+      state.snake.musicMelodyIdx = (state.snake.musicMelodyIdx + 1) % SNAKE_MELODY.length;
+    }
+
+    while (bassTime < ctx.currentTime + 0.25) {
+      const [f, d] = SNAKE_BASS[state.snake.musicBassIdx];
+      const dur = d * eighth;
+      if (f > 0) scheduleSnakeMusicNote(f, bassTime, dur * 0.85, "triangle", 0.008);
+      bassTime += dur;
+      state.snake.musicBassIdx = (state.snake.musicBassIdx + 1) % SNAKE_BASS.length;
+    }
+
+    state.snake.musicTimerId = setTimeout(tick, 100);
+  }
+
+  tick();
+}
+
+function startSnakeMusic() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  stopSnakeMusic();
+
+  const begin = () => {
+    const gain = ctx.createGain();
+    gain.gain.value = 1;
+    gain.connect(ctx.destination);
+    state.snake.musicGain = gain;
+    state.snake.musicMelodyIdx = 0;
+    state.snake.musicBassIdx = 0;
+    runSnakeMusicScheduler();
+  };
+
+  if (ctx.state === "suspended") {
+    ctx.resume().then(begin);
+  } else {
+    begin();
+  }
+}
+
+function pauseSnakeMusic() {
+  clearTimeout(state.snake.musicTimerId);
+  state.snake.musicTimerId = 0;
+  if (state.snake.musicGain && state.audioCtx) {
+    state.snake.musicGain.gain.setTargetAtTime(0, state.audioCtx.currentTime, 0.03);
+  }
+}
+
+function resumeSnakeMusic() {
+  if (!state.snake.musicGain || !state.audioCtx) return;
+  state.snake.musicGain.gain.setTargetAtTime(1, state.audioCtx.currentTime, 0.03);
+  runSnakeMusicScheduler();
+}
+
+function stopSnakeMusic() {
+  clearTimeout(state.snake.musicTimerId);
+  state.snake.musicTimerId = 0;
+  if (state.snake.musicGain) {
+    try {
+      if (state.audioCtx) {
+        state.snake.musicGain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+      }
+      state.snake.musicGain.disconnect();
+    } catch (_) { /* ignore */ }
+    state.snake.musicGain = null;
+  }
+  state.snake.musicMelodyIdx = 0;
+  state.snake.musicBassIdx = 0;
+}
+
+// ─── Snake event listeners ───
+
+function setupSnakeEventListeners() {
+  els.buySnakePlaysBtn.addEventListener("click", buySnakePlays);
+  els.openSnakeBtn.addEventListener("click", openSnakeModal);
+  els.closeSnakeBtn.addEventListener("click", closeSnakeModal);
+  els.startSnakeGameBtn.addEventListener("click", startSnakeGame);
+  els.pauseSnakeGameBtn.addEventListener("click", toggleSnakePause);
+
+  els.snakeModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === els.snakeModalBackdrop && !state.snake.active) {
+      closeSnakeModal();
+    }
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.snakeModalBackdrop.classList.contains("hidden")) {
+      if (!state.snake.active) closeSnakeModal();
+    }
+  });
+
+  window.addEventListener("keydown", handleSnakeKeyDown);
+
+  // Touch D-pad
+  els.snakeTouchUp.addEventListener("pointerdown", () => setSnakeDir(0, -1));
+  els.snakeTouchDown.addEventListener("pointerdown", () => setSnakeDir(0, 1));
+  els.snakeTouchLeft.addEventListener("pointerdown", () => setSnakeDir(-1, 0));
+  els.snakeTouchRight.addEventListener("pointerdown", () => setSnakeDir(1, 0));
+
+  bindSnakeSwipeGestures(els.snakeCanvas);
+}
+
+function setSnakeDir(dx, dy) {
+  if (!state.snake.active || state.snake.paused) return;
+  const cur = state.snake.dir;
+  // Prevent 180° turns
+  if (dx !== 0 && dx === -cur.x) return;
+  if (dy !== 0 && dy === -cur.y) return;
+  state.snake.nextDir = {x: dx, y: dy};
+}
+
+function handleSnakeKeyDown(event) {
+  if (els.snakeModalBackdrop.classList.contains("hidden")) return;
+
+  if (event.key === " ") {
+    event.preventDefault();
+    toggleSnakePause();
+    return;
+  }
+
+  if (!state.snake.active || state.snake.paused) return;
+
+  const KEY_MAP = {
+    ArrowUp: {x:0,y:-1}, w: {x:0,y:-1}, W: {x:0,y:-1},
+    ArrowDown: {x:0,y:1}, s: {x:0,y:1}, S: {x:0,y:1},
+    ArrowLeft: {x:-1,y:0}, a: {x:-1,y:0}, A: {x:-1,y:0},
+    ArrowRight: {x:1,y:0}, d: {x:1,y:0}, D: {x:1,y:0},
+  };
+
+  const dir = KEY_MAP[event.key];
+  if (dir) {
+    event.preventDefault();
+    setSnakeDir(dir.x, dir.y);
+  }
+}
+
+function bindSnakeSwipeGestures(canvas) {
+  let startX = 0;
+  let startY = 0;
+
+  canvas.addEventListener("touchstart", (e) => {
+    if (!state.snake.active || state.snake.paused) return;
+    e.preventDefault();
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, {passive: false});
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (!state.snake.active || state.snake.paused) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    const MIN_SWIPE = 30;
+
+    if (Math.abs(dx) > MIN_SWIPE && Math.abs(dx) > Math.abs(dy)) {
+      setSnakeDir(dx > 0 ? 1 : -1, 0);
+      startX = e.touches[0].clientX;
+    } else if (Math.abs(dy) > MIN_SWIPE && Math.abs(dy) > Math.abs(dx)) {
+      setSnakeDir(0, dy > 0 ? 1 : -1);
+      startY = e.touches[0].clientY;
+    }
+  }, {passive: false});
 }
 
 // ─── Utilities ───
