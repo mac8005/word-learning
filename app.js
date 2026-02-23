@@ -721,13 +721,13 @@ function findGermanVoiceNow() {
 }
 
 function speakWordViaSynthesis(word) {
+  if (!("speechSynthesis" in window)) return;
   findGermanVoiceNow();
-  if (!state.germanVoice) return;
-  console.log("[TTS] Verwende Speech Synthesis:", state.germanVoice.name);
+  console.log("[TTS] Verwende Speech Synthesis:", state.germanVoice ? state.germanVoice.name : "(Browser-Standard de-DE)");
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = state.germanVoice.lang;
-  utterance.voice = state.germanVoice;
+  utterance.lang = "de-DE";
+  if (state.germanVoice) utterance.voice = state.germanVoice;
   utterance.rate = SPEECH_RATE;
   utterance.pitch = 1.02;
   window.speechSynthesis.speak(utterance);
