@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-23 09:44";
+const BUILD_DATE = "2026-02-23 – Malrechnen";
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
 const SNAKE_PLAY_BUNDLE_COST = 20;
@@ -150,6 +150,13 @@ const state = {
     musicMelodyIdx: 0,
     musicBassIdx: 0,
   },
+  mathQuiz: {
+    problems: [],
+    answers: [],
+    currentIndex: 0,
+    active: false,
+    correctionBonusGiven: false,
+  },
   snake: {
     active: false,
     paused: false,
@@ -245,6 +252,36 @@ const els = {
   snakeTouchDown: document.getElementById("snakeTouchDown"),
   snakeTouchLeft: document.getElementById("snakeTouchLeft"),
   snakeTouchRight: document.getElementById("snakeTouchRight"),
+  // Mode tabs
+  modeWordTab: document.getElementById("modeWordTab"),
+  modeMathTab: document.getElementById("modeMathTab"),
+  // Math panels
+  mathSetupPanel: document.getElementById("mathSetupPanel"),
+  mathQuizPanel: document.getElementById("mathQuizPanel"),
+  mathResultPanel: document.getElementById("mathResultPanel"),
+  tablesPicker: document.getElementById("tablesPicker"),
+  tablesCount: document.getElementById("tablesCount"),
+  selectAllTablesBtn: document.getElementById("selectAllTablesBtn"),
+  selectNoTablesBtn: document.getElementById("selectNoTablesBtn"),
+  mathSetSize: document.getElementById("mathSetSize"),
+  startMathBtn: document.getElementById("startMathBtn"),
+  mathProgressText: document.getElementById("mathProgressText"),
+  mathProgressFill: document.getElementById("mathProgressFill"),
+  mathNum1: document.getElementById("mathNum1"),
+  mathNum2: document.getElementById("mathNum2"),
+  speakMathBtn: document.getElementById("speakMathBtn"),
+  mathInput: document.getElementById("mathInput"),
+  nextMathBtn: document.getElementById("nextMathBtn"),
+  mathFeedback: document.getElementById("mathFeedback"),
+  mathRatingLabel: document.getElementById("mathRatingLabel"),
+  mathScoreLine: document.getElementById("mathScoreLine"),
+  mathCoinRewardLine: document.getElementById("mathCoinRewardLine"),
+  mathMistakesBlock: document.getElementById("mathMistakesBlock"),
+  mathMistakesList: document.getElementById("mathMistakesList"),
+  checkMathCorrectionsBtn: document.getElementById("checkMathCorrectionsBtn"),
+  mathCorrectionFeedback: document.getElementById("mathCorrectionFeedback"),
+  playMathAgainBtn: document.getElementById("playMathAgainBtn"),
+  mathSetupFeedback: document.getElementById("mathSetupFeedback"),
 };
 
 const tetrisCtx = els.tetrisCanvas.getContext("2d");
@@ -325,6 +362,42 @@ function bindEvents() {
   });
   els.checkCorrectionsBtn.addEventListener("click", checkCorrections);
   els.playAgainBtn.addEventListener("click", resetToSetup);
+
+  // Mode tabs
+  els.modeWordTab.addEventListener("click", () => switchMode("word"));
+  els.modeMathTab.addEventListener("click", () => switchMode("math"));
+
+  // Math setup
+  els.selectAllTablesBtn.addEventListener("click", () => {
+    for (const pill of els.tablesPicker.querySelectorAll(".lg-pill")) {
+      pill.classList.add("selected");
+    }
+    updateTablesCount();
+  });
+  els.selectNoTablesBtn.addEventListener("click", () => {
+    for (const pill of els.tablesPicker.querySelectorAll(".lg-pill")) {
+      pill.classList.remove("selected");
+    }
+    updateTablesCount();
+  });
+  els.tablesPicker.addEventListener("click", (e) => {
+    const pill = e.target.closest(".lg-pill");
+    if (!pill) return;
+    pill.classList.toggle("selected");
+    updateTablesCount();
+  });
+  els.startMathBtn.addEventListener("click", startMathQuiz);
+
+  // Math quiz
+  els.speakMathBtn.addEventListener("click", speakCurrentMathProblem);
+  els.nextMathBtn.addEventListener("click", submitMathAnswer);
+  els.mathInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submitMathAnswer();
+  });
+
+  // Math result
+  els.checkMathCorrectionsBtn.addEventListener("click", checkMathCorrections);
+  els.playMathAgainBtn.addEventListener("click", resetToMathSetup);
 
   els.buyTetrisPlaysBtn.addEventListener("click", buyTetrisPlays);
   els.openTetrisBtn.addEventListener("click", openTetrisModal);
@@ -1003,10 +1076,260 @@ function resetToSetup() {
   setFeedback(els.quizFeedback, "Wähle ein Set und starte die Mission.", "ok");
 }
 
-function setPanelVisibility({ setup, quiz, result }) {
+function setPanelVisibility({ setup, quiz, result, mathSetup = false, mathQuiz = false, mathResult = false }) {
   els.setupPanel.classList.toggle("hidden", !setup);
   els.quizPanel.classList.toggle("hidden", !quiz);
   els.resultPanel.classList.toggle("hidden", !result);
+  els.mathSetupPanel.classList.toggle("hidden", !mathSetup);
+  els.mathQuizPanel.classList.toggle("hidden", !mathQuiz);
+  els.mathResultPanel.classList.toggle("hidden", !mathResult);
+}
+
+function switchMode(mode) {
+  if (mode === "math") {
+    els.modeWordTab.classList.remove("active");
+    els.modeMathTab.classList.add("active");
+    setPanelVisibility({ mathSetup: true });
+    updateTablesCount();
+  } else {
+    els.modeMathTab.classList.remove("active");
+    els.modeWordTab.classList.add("active");
+    setPanelVisibility({ setup: true });
+  }
+}
+
+function updateTablesCount() {
+  const total = els.tablesPicker.querySelectorAll(".lg-pill").length;
+  const selected = els.tablesPicker.querySelectorAll(".lg-pill.selected").length;
+  if (selected === total) {
+    els.tablesCount.textContent = `Alle ${total} Reihen ausgewählt`;
+  } else if (selected === 0) {
+    els.tablesCount.textContent = "Keine Reihe ausgewählt";
+  } else {
+    els.tablesCount.textContent = `${selected} von ${total} Reihen ausgewählt`;
+  }
+}
+
+// ─── Math Quiz ───
+
+function startMathQuiz() {
+  const selectedTables = [...els.tablesPicker.querySelectorAll(".lg-pill.selected")]
+    .map(p => Number.parseInt(p.dataset.value, 10));
+
+  if (!selectedTables.length) {
+    setFeedback(els.mathSetupFeedback, "Bitte mindestens eine Reihe auswählen.", "bad");
+    return;
+  }
+  setFeedback(els.mathSetupFeedback, "", "ok");
+
+  const requestedSize = Number.parseInt(els.mathSetSize.value, 10);
+
+  // Build problem pool: for each selected table n, generate n×0 … n×10
+  const pool = [];
+  for (const n of selectedTables) {
+    for (let i = 0; i <= 10; i++) {
+      pool.push({ a: n, b: i, answer: n * i });
+    }
+  }
+
+  const shuffled = shuffle(pool.slice());
+  const setSize = Math.min(requestedSize, shuffled.length);
+  state.mathQuiz.problems = shuffled.slice(0, setSize);
+  state.mathQuiz.answers = [];
+  state.mathQuiz.currentIndex = 0;
+  state.mathQuiz.active = true;
+  state.mathQuiz.correctionBonusGiven = false;
+
+  setPanelVisibility({ mathQuiz: true });
+  renderCurrentMathState();
+  speakCurrentMathProblem();
+}
+
+function renderCurrentMathState() {
+  const problem = state.mathQuiz.problems[state.mathQuiz.currentIndex];
+  if (!problem) return;
+
+  const total = state.mathQuiz.problems.length;
+  const progressPercent = (state.mathQuiz.currentIndex / total) * 100;
+  els.mathProgressText.textContent = `Aufgabe ${state.mathQuiz.currentIndex + 1} / ${total}`;
+  els.mathProgressFill.style.width = `${Math.max(6, progressPercent)}%`;
+
+  els.mathNum1.textContent = String(problem.a);
+  els.mathNum2.textContent = String(problem.b);
+
+  els.mathInput.value = "";
+  els.mathInput.focus();
+  setFeedback(els.mathFeedback, "Berechne und tippe das Ergebnis.", "ok");
+}
+
+function speakCurrentMathProblem() {
+  if (!state.mathQuiz.active) return;
+  const problem = state.mathQuiz.problems[state.mathQuiz.currentIndex];
+  speakWord(`${problem.a} mal ${problem.b}`);
+}
+
+function submitMathAnswer() {
+  if (!state.mathQuiz.active) return;
+
+  const userInputRaw = els.mathInput.value.trim();
+  if (!userInputRaw) {
+    setFeedback(els.mathFeedback, "Bitte erst ein Ergebnis eingeben.", "bad");
+    return;
+  }
+
+  const userInput = Number.parseInt(userInputRaw, 10);
+  if (Number.isNaN(userInput)) {
+    setFeedback(els.mathFeedback, "Bitte eine Zahl eingeben.", "bad");
+    return;
+  }
+
+  const problem = state.mathQuiz.problems[state.mathQuiz.currentIndex];
+  const correct = userInput === problem.answer;
+
+  state.mathQuiz.answers.push({ a: problem.a, b: problem.b, answer: problem.answer, userInput, correct });
+
+  state.mathQuiz.currentIndex += 1;
+  if (state.mathQuiz.currentIndex >= state.mathQuiz.problems.length) {
+    finishMathQuiz();
+    return;
+  }
+
+  renderCurrentMathState();
+  speakCurrentMathProblem();
+}
+
+function finishMathQuiz() {
+  state.mathQuiz.active = false;
+
+  const total = state.mathQuiz.answers.length;
+  const correctCount = state.mathQuiz.answers.filter(e => e.correct).length;
+  const percent = Math.round((correctCount / total) * 100);
+  const rating = getRating(percent);
+
+  const earnedCoins = Math.round(20 * correctCount / total);
+  addCoins(earnedCoins);
+
+  els.mathRatingLabel.textContent = rating;
+  els.mathScoreLine.textContent = `${correctCount} / ${total} richtig (${percent}%)`;
+  els.mathCoinRewardLine.textContent = `+${earnedCoins} Münzen erhalten`;
+  els.mathProgressFill.style.width = "100%";
+
+  renderMathMistakes();
+  setPanelVisibility({ mathResult: true });
+
+  if (percent >= 80) spawnCelebration();
+}
+
+function renderMathMistakes() {
+  const mistakes = state.mathQuiz.answers
+    .map((entry, index) => ({ ...entry, index }))
+    .filter(entry => !entry.correct);
+
+  els.mathMistakesList.innerHTML = "";
+  setFeedback(els.mathCorrectionFeedback, "", "ok");
+
+  if (!mistakes.length) {
+    els.mathMistakesBlock.innerHTML = `
+      <h3>Perfekte Mission</h3>
+      <p>Alle Aufgaben waren richtig. Stark!</p>
+    `;
+    return;
+  }
+
+  els.mathMistakesBlock.innerHTML = `
+    <h3>Fehler-Labor</h3>
+    <p>Korrigiere die falschen Aufgaben und hole Bonus-Münzen.</p>
+    <div id="mathMistakesList"></div>
+    <button id="checkMathCorrectionsBtn" class="btn primary">Korrekturen prüfen</button>
+    <p id="mathCorrectionFeedback" class="feedback"></p>
+  `;
+
+  els.mathMistakesList = document.getElementById("mathMistakesList");
+  els.checkMathCorrectionsBtn = document.getElementById("checkMathCorrectionsBtn");
+  els.mathCorrectionFeedback = document.getElementById("mathCorrectionFeedback");
+  els.checkMathCorrectionsBtn.addEventListener("click", checkMathCorrections);
+
+  for (const mistake of mistakes) {
+    const row = document.createElement("div");
+    row.className = "mistake-item";
+    row.dataset.answerIndex = String(mistake.index);
+
+    row.innerHTML = `
+      <div class="mistake-title">Nochmal versuchen</div>
+      <div class="math-task-display">${mistake.a} × ${mistake.b} = ?</div>
+      <p class="mistake-meta">Deine Antwort: <strong>${mistake.userInput}</strong></p>
+      <button type="button" class="btn secondary retry-audio">Aufgabe vorlesen</button>
+      <input type="number" inputmode="numeric" class="correction-input" placeholder="Richtiges Ergebnis" />
+    `;
+
+    row.querySelector(".retry-audio").addEventListener("click", () => {
+      speakWord(`${mistake.a} mal ${mistake.b}`);
+    });
+
+    const correctionInput = row.querySelector(".correction-input");
+    correctionInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const allInputs = [...els.mathMistakesList.querySelectorAll(".correction-input")];
+      const currentIdx = allInputs.indexOf(correctionInput);
+      const nextInput = allInputs.slice(currentIdx + 1).find(inp => !inp.closest(".mistake-item.corrected"));
+      if (nextInput) {
+        nextInput.focus();
+      } else {
+        checkMathCorrections();
+      }
+    });
+
+    els.mathMistakesList.appendChild(row);
+  }
+}
+
+function checkMathCorrections() {
+  const rows = [...els.mathMistakesList.querySelectorAll(".mistake-item")];
+  if (!rows.length) return;
+
+  let fixedCount = 0;
+  let allCorrectNow = true;
+
+  for (const row of rows) {
+    const answerIndex = Number.parseInt(row.dataset.answerIndex ?? "-1", 10);
+    const correctionInput = row.querySelector(".correction-input");
+    if (!correctionInput) continue;
+
+    const proposed = Number.parseInt(correctionInput.value.trim(), 10);
+    const correctAnswer = state.mathQuiz.answers[answerIndex]?.answer;
+
+    if (Number.isNaN(proposed) || proposed !== correctAnswer) {
+      allCorrectNow = false;
+      row.classList.remove("corrected");
+      continue;
+    }
+
+    row.classList.add("corrected");
+    fixedCount += 1;
+  }
+
+  if (!allCorrectNow) {
+    setFeedback(els.mathCorrectionFeedback, `${fixedCount} korrigiert. Versuche die restlichen Aufgaben nochmal.`, "bad");
+    return;
+  }
+
+  if (!state.mathQuiz.correctionBonusGiven) {
+    const bonus = 2;
+    addCoins(bonus);
+    state.mathQuiz.correctionBonusGiven = true;
+    setFeedback(els.mathCorrectionFeedback, `Alles korrigiert! +${bonus} Bonus-Münzen.`, "ok");
+    spawnCelebration();
+    return;
+  }
+
+  setFeedback(els.mathCorrectionFeedback, "Alle Korrekturen sind schon erledigt.", "ok");
+}
+
+function resetToMathSetup() {
+  state.mathQuiz.active = false;
+  setPanelVisibility({ mathSetup: true });
+  setFeedback(els.mathFeedback, "Wähle die Reihen und starte.", "ok");
 }
 
 // ─── Coins & plays ───

@@ -25,7 +25,102 @@
         <div class="coin-badge" id="coinBadge">Münzen: <strong id="coinCount">0</strong></div>
       </header>
 
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="modeWordTab">Wörter lernen</button>
+        <button class="mode-tab" id="modeMathTab">× Malrechnen</button>
+      </div>
+
       <main class="layout">
+        <!-- ── Math Setup Panel ── -->
+        <section class="card panel hidden" id="mathSetupPanel">
+          <h2>Malrechnen starten</h2>
+          <div class="controls-grid">
+            <div class="field-group">
+              <span class="label-row">
+                Einmaleins-Reihen
+                <span class="label-actions">
+                  <button type="button" class="btn-micro" id="selectAllTablesBtn">Alle</button>
+                  <button type="button" class="btn-micro" id="selectNoTablesBtn">Keine</button>
+                </span>
+              </span>
+              <div class="letter-group-picker" id="tablesPicker">
+                <span class="lg-pill selected" data-value="1">1er</span>
+                <span class="lg-pill selected" data-value="2">2er</span>
+                <span class="lg-pill selected" data-value="3">3er</span>
+                <span class="lg-pill selected" data-value="4">4er</span>
+                <span class="lg-pill selected" data-value="5">5er</span>
+                <span class="lg-pill selected" data-value="6">6er</span>
+                <span class="lg-pill selected" data-value="7">7er</span>
+                <span class="lg-pill selected" data-value="8">8er</span>
+                <span class="lg-pill selected" data-value="9">9er</span>
+                <span class="lg-pill selected" data-value="10">10er</span>
+              </div>
+              <span class="lg-count" id="tablesCount">Alle 10 Reihen ausgewählt</span>
+            </div>
+            <label>
+              Aufgaben
+              <select id="mathSetSize">
+                <option value="5">5 Aufgaben</option>
+                <option value="10" selected>10 Aufgaben</option>
+                <option value="15">15 Aufgaben</option>
+                <option value="20">20 Aufgaben</option>
+              </select>
+            </label>
+          </div>
+          <button id="startMathBtn" class="btn primary">Malrechnen starten</button>
+          <p class="small-note">Tipp: Du kannst mehrere Reihen gleichzeitig üben.</p>
+          <p id="mathSetupFeedback" class="feedback"></p>
+        </section>
+
+        <!-- ── Math Quiz Panel ── -->
+        <section class="card panel hidden" id="mathQuizPanel">
+          <div class="quiz-top">
+            <h2>Löse die Aufgabe</h2>
+            <p id="mathProgressText">Aufgabe 1 / 10</p>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="mathProgressFill"></div>
+          </div>
+          <div class="math-problem" id="mathProblem">
+            <span class="math-number" id="mathNum1">4</span>
+            <span class="math-op">×</span>
+            <span class="math-number" id="mathNum2">7</span>
+            <span class="math-op">=</span>
+            <span class="math-question">?</span>
+          </div>
+          <div class="quiz-controls">
+            <button id="speakMathBtn" class="btn secondary">Vorlesen</button>
+            <input
+              id="mathInput"
+              type="number"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="Ergebnis"
+              aria-label="Ergebnis der Aufgabe eingeben"
+            />
+            <button id="nextMathBtn" class="btn primary">Weiter</button>
+          </div>
+          <p id="mathFeedback" class="feedback"></p>
+        </section>
+
+        <!-- ── Math Result Panel ── -->
+        <section class="card panel hidden" id="mathResultPanel">
+          <h2>Missionsergebnis</h2>
+          <div class="result-highlight">
+            <div class="rating" id="mathRatingLabel">Mathe-Held</div>
+            <div class="score-line" id="mathScoreLine">8 / 10 richtig</div>
+            <div class="score-line" id="mathCoinRewardLine">+20 Münzen erhalten</div>
+          </div>
+          <div id="mathMistakesBlock">
+            <h3>Fehler-Labor</h3>
+            <p>Korrigiere die falschen Aufgaben und hole Bonus-Münzen.</p>
+            <div id="mathMistakesList"></div>
+            <button id="checkMathCorrectionsBtn" class="btn primary">Korrekturen prüfen</button>
+            <p id="mathCorrectionFeedback" class="feedback"></p>
+          </div>
+          <button id="playMathAgainBtn" class="btn secondary">Neues Set spielen</button>
+        </section>
+
         <section class="card panel" id="setupPanel">
           <h2>Neues Wort-Set starten</h2>
           <div class="controls-grid">

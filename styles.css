@@ -917,6 +917,91 @@ body.modal-open {
   width: 100%;
 }
 
+/* ─── Mode tabs ─── */
+
+.mode-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  margin-bottom: -0.15rem;
+  padding: 0 0.1rem;
+}
+
+.mode-tab {
+  padding: 0.55rem 1.3rem;
+  border-radius: 0.8rem 0.8rem 0 0;
+  border: 2px solid #cbd5e1;
+  border-bottom: none;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 800;
+  font-family: "Baloo 2", cursive;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.mode-tab:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.mode-tab.active {
+  background: var(--card);
+  color: var(--accent);
+  border-color: #14b8a6;
+  border-bottom-color: var(--card);
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Math problem display ─── */
+
+.math-problem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1.5rem 1rem;
+  background: linear-gradient(140deg, #eff6ff, #f0fdf4);
+  border-radius: 1rem;
+  border: 2px solid #bfdbfe;
+  flex-wrap: wrap;
+}
+
+.math-number {
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-family: "Baloo 2", cursive;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.math-op {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-family: "Baloo 2", cursive;
+  font-weight: 700;
+  color: #475569;
+  line-height: 1;
+}
+
+.math-question {
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-family: "Baloo 2", cursive;
+  font-weight: 800;
+  color: var(--accent-2);
+  line-height: 1;
+}
+
+/* ─── Math mistake display ─── */
+
+.math-task-display {
+  font-size: 1.4rem;
+  font-family: "Baloo 2", cursive;
+  font-weight: 800;
+  color: var(--accent);
+}
+
 /* ─── Responsive ─── */
 
 @media (max-width: 860px) {
