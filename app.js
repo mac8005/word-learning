@@ -118,6 +118,7 @@ const SNAKE_BASS = [
 ];
 
 const state = {
+  mode: "words", // "words" or "math"
   wordBank: {},
   letterKeys: [],
   quizWords: [],
@@ -125,6 +126,12 @@ const state = {
   currentIndex: 0,
   quizActive: false,
   correctionBonusGiven: false,
+  // Math-specific state
+  mathProblems: [],    // [{a, b, answer, text, speech}]
+  mathAnswers: [],     // [{target, userInput, correct, problemText}]
+  mathIndex: 0,
+  mathActive: false,
+  mathCorrectionBonusGiven: false,
   coins: 0,
   tetrisPlays: 0,
   snakePlays: 0,
@@ -245,6 +252,26 @@ const els = {
   snakeTouchDown: document.getElementById("snakeTouchDown"),
   snakeTouchLeft: document.getElementById("snakeTouchLeft"),
   snakeTouchRight: document.getElementById("snakeTouchRight"),
+  // Mode selector
+  modeSelector: document.getElementById("modeSelector"),
+  modeWordsBtn: document.getElementById("modeWordsBtn"),
+  modeMathBtn: document.getElementById("modeMathBtn"),
+  // Math panels & elements
+  mathSetupPanel: document.getElementById("mathSetupPanel"),
+  tablesPicker: document.getElementById("tablesPicker"),
+  tablesCount: document.getElementById("tablesCount"),
+  selectAllTablesBtn: document.getElementById("selectAllTablesBtn"),
+  selectNoTablesBtn: document.getElementById("selectNoTablesBtn"),
+  mathSetSize: document.getElementById("mathSetSize"),
+  startMathBtn: document.getElementById("startMathBtn"),
+  mathQuizPanel: document.getElementById("mathQuizPanel"),
+  mathProgressText: document.getElementById("mathProgressText"),
+  mathProgressFill: document.getElementById("mathProgressFill"),
+  mathProblemDisplay: document.getElementById("mathProblemDisplay"),
+  mathSpeakBtn: document.getElementById("mathSpeakBtn"),
+  mathInput: document.getElementById("mathInput"),
+  mathNextBtn: document.getElementById("mathNextBtn"),
+  mathQuizFeedback: document.getElementById("mathQuizFeedback"),
 };
 
 const tetrisCtx = els.tetrisCanvas.getContext("2d");
@@ -269,6 +296,7 @@ async function initialize() {
   bindEvents();
   setupSnakeEventListeners();
   setupSpeechVoices();
+  populateTablesPicker();
   drawTetris("TETRIS");
   drawSnakeGame("SNAKE");
 
@@ -297,6 +325,33 @@ async function initialize() {
 }
 
 function bindEvents() {
+  // Mode switching
+  els.modeWordsBtn.addEventListener("click", () => switchMode("words"));
+  els.modeMathBtn.addEventListener("click", () => switchMode("math"));
+
+  // Math events
+  els.startMathBtn.addEventListener("click", startMathQuiz);
+  els.selectAllTablesBtn.addEventListener("click", () => {
+    for (const pill of els.tablesPicker.querySelectorAll(".lg-pill")) pill.classList.add("selected");
+    updateTablesCount();
+  });
+  els.selectNoTablesBtn.addEventListener("click", () => {
+    for (const pill of els.tablesPicker.querySelectorAll(".lg-pill")) pill.classList.remove("selected");
+    updateTablesCount();
+  });
+  els.tablesPicker.addEventListener("click", (e) => {
+    const pill = e.target.closest(".lg-pill");
+    if (!pill) return;
+    pill.classList.toggle("selected");
+    updateTablesCount();
+  });
+  els.mathSpeakBtn.addEventListener("click", speakCurrentMathProblem);
+  els.mathNextBtn.addEventListener("click", submitMathAnswer);
+  els.mathInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submitMathAnswer();
+  });
+
+  // Word events
   els.startBtn.addEventListener("click", startQuiz);
   els.selectAllGroupsBtn.addEventListener("click", () => {
     for (const pill of els.letterGroupPicker.querySelectorAll(".lg-pill")) {
@@ -678,7 +733,7 @@ function startQuiz() {
   state.quizActive = true;
   state.correctionBonusGiven = false;
 
-  setPanelVisibility({ setup: false, quiz: true, result: false });
+  setPanelVisibility({ setup: false, quiz: true, result: false, mathSetup: false, mathQuiz: false });
   renderCurrentWordState();
   speakCurrentWord();
 }
@@ -856,7 +911,7 @@ function finishQuiz() {
   els.progressFill.style.width = "100%";
 
   renderMistakes();
-  setPanelVisibility({ setup: false, quiz: false, result: true });
+  setPanelVisibility({ setup: false, quiz: false, result: true, mathSetup: false, mathQuiz: false });
 
   if (percent >= 80) {
     spawnCelebration();
@@ -999,14 +1054,298 @@ function checkCorrections() {
 
 function resetToSetup() {
   state.quizActive = false;
-  setPanelVisibility({ setup: true, quiz: false, result: false });
-  setFeedback(els.quizFeedback, "Wähle ein Set und starte die Mission.", "ok");
+  state.mathActive = false;
+  if (state.mode === "math") {
+    setPanelVisibility({ setup: false, quiz: false, result: false, mathSetup: true, mathQuiz: false });
+  } else {
+    setPanelVisibility({ setup: true, quiz: false, result: false, mathSetup: false, mathQuiz: false });
+    setFeedback(els.quizFeedback, "Wähle ein Set und starte die Mission.", "ok");
+  }
 }
 
-function setPanelVisibility({ setup, quiz, result }) {
+function setPanelVisibility({ setup, quiz, result, mathSetup, mathQuiz }) {
   els.setupPanel.classList.toggle("hidden", !setup);
   els.quizPanel.classList.toggle("hidden", !quiz);
   els.resultPanel.classList.toggle("hidden", !result);
+  els.mathSetupPanel.classList.toggle("hidden", !mathSetup);
+  els.mathQuizPanel.classList.toggle("hidden", !mathQuiz);
+}
+
+// ─── Mode switching ───
+
+function switchMode(mode) {
+  state.mode = mode;
+  els.modeWordsBtn.classList.toggle("active", mode === "words");
+  els.modeMathBtn.classList.toggle("active", mode === "math");
+  if (mode === "words") {
+    setPanelVisibility({ setup: true, quiz: false, result: false, mathSetup: false, mathQuiz: false });
+  } else {
+    setPanelVisibility({ setup: false, quiz: false, result: false, mathSetup: true, mathQuiz: false });
+  }
+}
+
+// ─── Math: Tables picker ───
+
+function populateTablesPicker() {
+  els.tablesPicker.innerHTML = "";
+  for (let i = 1; i <= 10; i++) {
+    const pill = document.createElement("span");
+    pill.className = "lg-pill selected";
+    pill.dataset.value = String(i);
+    pill.textContent = `${i}er`;
+    els.tablesPicker.appendChild(pill);
+  }
+  updateTablesCount();
+}
+
+function updateTablesCount() {
+  const total = els.tablesPicker.querySelectorAll(".lg-pill").length;
+  const selected = els.tablesPicker.querySelectorAll(".lg-pill.selected").length;
+  if (selected === total) {
+    els.tablesCount.textContent = `Alle ${total} Reihen ausgewählt`;
+  } else if (selected === 0) {
+    els.tablesCount.textContent = "Keine Reihe ausgewählt";
+  } else {
+    els.tablesCount.textContent = `${selected} von ${total} Reihen ausgewählt`;
+  }
+}
+
+// ─── Math: Quiz ───
+
+function generateMathProblems(tables, count) {
+  const pool = [];
+  for (const t of tables) {
+    for (let i = 0; i <= 10; i++) {
+      pool.push({ a: t, b: i, answer: t * i });
+    }
+  }
+  const shuffled = shuffle(pool.slice());
+  const problems = shuffled.slice(0, Math.min(count, shuffled.length));
+  for (const p of problems) {
+    p.text = `${p.a} \u00D7 ${p.b} = ?`;
+    p.speech = `${p.a} mal ${p.b}`;
+  }
+  return problems;
+}
+
+function startMathQuiz() {
+  const selectedTables = [...els.tablesPicker.querySelectorAll(".lg-pill.selected")].map(p => Number(p.dataset.value));
+  if (!selectedTables.length) {
+    setFeedback(els.mathQuizFeedback, "Bitte mindestens eine Reihe auswählen.", "bad");
+    return;
+  }
+  const requestedSize = Number.parseInt(els.mathSetSize.value, 10);
+  const problems = generateMathProblems(selectedTables, requestedSize);
+
+  if (!problems.length) {
+    setFeedback(els.mathQuizFeedback, "Keine Aufgaben gefunden.", "bad");
+    return;
+  }
+
+  state.mathProblems = problems;
+  state.mathAnswers = [];
+  state.mathIndex = 0;
+  state.mathActive = true;
+  state.mathCorrectionBonusGiven = false;
+
+  setPanelVisibility({ setup: false, quiz: false, result: false, mathSetup: false, mathQuiz: true });
+  renderCurrentMathProblem();
+  speakCurrentMathProblem();
+}
+
+function renderCurrentMathProblem() {
+  const problem = state.mathProblems[state.mathIndex];
+  if (!problem) return;
+
+  const total = state.mathProblems.length;
+  const progressPercent = (state.mathIndex / total) * 100;
+  els.mathProgressText.textContent = `Aufgabe ${state.mathIndex + 1} / ${total}`;
+  els.mathProgressFill.style.width = `${Math.max(6, progressPercent)}%`;
+  els.mathProblemDisplay.textContent = problem.text;
+
+  els.mathInput.value = "";
+  els.mathInput.focus();
+  setFeedback(els.mathQuizFeedback, "Höre die Aufgabe und tippe das Ergebnis.", "ok");
+}
+
+function speakCurrentMathProblem() {
+  if (!state.mathActive) return;
+  const problem = state.mathProblems[state.mathIndex];
+  if (problem) speakWord(problem.speech);
+}
+
+function submitMathAnswer() {
+  if (!state.mathActive) return;
+
+  const userInput = els.mathInput.value.trim();
+  if (!userInput) {
+    setFeedback(els.mathQuizFeedback, "Bitte erst das Ergebnis eingeben.", "bad");
+    return;
+  }
+
+  const problem = state.mathProblems[state.mathIndex];
+  const userNumber = Number.parseInt(userInput, 10);
+  const correct = userNumber === problem.answer;
+
+  state.mathAnswers.push({
+    target: String(problem.answer),
+    userInput: userInput,
+    correct,
+    problemText: `${problem.a} \u00D7 ${problem.b}`,
+  });
+
+  state.mathIndex += 1;
+  if (state.mathIndex >= state.mathProblems.length) {
+    finishMathQuiz();
+    return;
+  }
+
+  renderCurrentMathProblem();
+  speakCurrentMathProblem();
+}
+
+function finishMathQuiz() {
+  state.mathActive = false;
+
+  const total = state.mathAnswers.length;
+  const correctCount = state.mathAnswers.filter((e) => e.correct).length;
+  const percent = Math.round((correctCount / total) * 100);
+  const rating = getMathRating(percent);
+
+  const earnedCoins = Math.round(20 * correctCount / total);
+  addCoins(earnedCoins);
+
+  els.ratingLabel.textContent = rating;
+  els.scoreLine.textContent = `${correctCount} / ${total} richtig (${percent}%)`;
+  els.coinRewardLine.textContent = `+${earnedCoins} Münzen erhalten`;
+  els.mathProgressFill.style.width = "100%";
+
+  renderMathMistakes();
+  setPanelVisibility({ setup: false, quiz: false, result: true, mathSetup: false, mathQuiz: false });
+
+  if (percent >= 80) {
+    spawnCelebration();
+  }
+}
+
+function getMathRating(percent) {
+  if (percent >= 95) return "Rechen-Genie";
+  if (percent >= 80) return "Mathe-Held";
+  if (percent >= 60) return "Starker Rechner";
+  return "Lern-Entdecker";
+}
+
+function renderMathMistakes() {
+  const mistakes = state.mathAnswers
+    .map((entry, index) => ({ ...entry, index }))
+    .filter((entry) => !entry.correct);
+
+  els.mistakesList.innerHTML = "";
+  setFeedback(els.correctionFeedback, "", "ok");
+
+  if (!mistakes.length) {
+    els.mistakesBlock.innerHTML = `
+      <h3>Perfekte Mission</h3>
+      <p>Alle Aufgaben waren richtig. Stark!</p>
+    `;
+    return;
+  }
+
+  els.mistakesBlock.innerHTML = `
+    <h3>Fehler-Labor</h3>
+    <p>Korrigiere die falschen Aufgaben und hole Bonus-Münzen.</p>
+    <div id="mistakesList"></div>
+    <button id="checkCorrectionsBtn" class="btn primary">Korrekturen prüfen</button>
+    <p id="correctionFeedback" class="feedback"></p>
+  `;
+
+  els.mistakesList = document.getElementById("mistakesList");
+  els.checkCorrectionsBtn = document.getElementById("checkCorrectionsBtn");
+  els.correctionFeedback = document.getElementById("correctionFeedback");
+  els.checkCorrectionsBtn.addEventListener("click", checkMathCorrections);
+
+  for (const mistake of mistakes) {
+    const row = document.createElement("div");
+    row.className = "mistake-item";
+    row.dataset.answerIndex = String(mistake.index);
+
+    row.innerHTML = `
+      <div class="mistake-title">${escapeHtml(mistake.problemText)} = ?</div>
+      <p class="mistake-meta">Deine Eingabe: <strong>${escapeHtml(mistake.userInput)}</strong></p>
+      <p class="mistake-meta">Das war leider falsch.</p>
+      <button type="button" class="btn secondary retry-audio">Aufgabe vorlesen</button>
+      <input type="number" inputmode="numeric" class="correction-input" placeholder="Richtiges Ergebnis eingeben" />
+    `;
+
+    const retryAudioButton = row.querySelector(".retry-audio");
+    if (retryAudioButton) {
+      const speechText = mistake.problemText.replace("\u00D7", "mal");
+      retryAudioButton.addEventListener("click", () => speakWord(speechText));
+    }
+
+    const correctionInput = row.querySelector(".correction-input");
+    if (correctionInput) {
+      correctionInput.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const allInputs = [...els.mistakesList.querySelectorAll(".correction-input")];
+        const currentIdx = allInputs.indexOf(correctionInput);
+        const nextInput = allInputs.slice(currentIdx + 1).find((inp) => !inp.closest(".mistake-item.corrected"));
+        if (nextInput) {
+          nextInput.focus();
+        } else {
+          checkMathCorrections();
+        }
+      });
+    }
+
+    els.mistakesList.appendChild(row);
+  }
+}
+
+function checkMathCorrections() {
+  const rows = [...els.mistakesList.querySelectorAll(".mistake-item")];
+  if (!rows.length) return;
+
+  let fixedCount = 0;
+  let allCorrectNow = true;
+
+  for (const row of rows) {
+    const answerIndex = Number.parseInt(row.dataset.answerIndex ?? "-1", 10);
+    const correctionInput = row.querySelector(".correction-input");
+    if (!correctionInput) continue;
+
+    const proposed = correctionInput.value.trim();
+    const target = state.mathAnswers[answerIndex]?.target;
+    if (!target || proposed !== target) {
+      allCorrectNow = false;
+      row.classList.remove("corrected");
+      continue;
+    }
+
+    row.classList.add("corrected");
+    fixedCount += 1;
+  }
+
+  if (!allCorrectNow) {
+    setFeedback(
+      els.correctionFeedback,
+      `${fixedCount} korrigiert. Versuche die restlichen Aufgaben nochmal.`,
+      "bad"
+    );
+    return;
+  }
+
+  if (!state.mathCorrectionBonusGiven) {
+    const bonus = 2;
+    addCoins(bonus);
+    state.mathCorrectionBonusGiven = true;
+    setFeedback(els.correctionFeedback, `Alles korrigiert! +${bonus} Bonus-Münzen.`, "ok");
+    spawnCelebration();
+    return;
+  }
+
+  setFeedback(els.correctionFeedback, "Alle Korrekturen sind schon erledigt.", "ok");
 }
 
 // ─── Coins & plays ───

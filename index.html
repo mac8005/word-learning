@@ -25,6 +25,11 @@
         <div class="coin-badge" id="coinBadge">Münzen: <strong id="coinCount">0</strong></div>
       </header>
 
+      <nav class="mode-selector card" id="modeSelector">
+        <button class="mode-btn active" id="modeWordsBtn" data-mode="words">Wörter</button>
+        <button class="mode-btn" id="modeMathBtn" data-mode="math">Malrechnen</button>
+      </nav>
+
       <main class="layout">
         <section class="card panel" id="setupPanel">
           <h2>Neues Wort-Set starten</h2>
@@ -77,6 +82,58 @@
             <button id="nextBtn" class="btn primary">Nächstes Wort</button>
           </div>
           <p id="quizFeedback" class="feedback"></p>
+        </section>
+
+        <section class="card panel hidden" id="mathSetupPanel">
+          <h2>Malrechnen starten</h2>
+          <div class="controls-grid">
+            <div class="field-group">
+              <span class="label-row">
+                Welche Reihen?
+                <span class="label-actions">
+                  <button type="button" class="btn-micro" id="selectAllTablesBtn">Alle</button>
+                  <button type="button" class="btn-micro" id="selectNoTablesBtn">Keine</button>
+                </span>
+              </span>
+              <div class="letter-group-picker" id="tablesPicker"></div>
+              <span class="lg-count" id="tablesCount"></span>
+            </div>
+            <label>
+              Anzahl Aufgaben
+              <select id="mathSetSize">
+                <option value="5">5 Aufgaben</option>
+                <option value="10" selected>10 Aufgaben</option>
+                <option value="15">15 Aufgaben</option>
+                <option value="20">20 Aufgaben</option>
+              </select>
+            </label>
+          </div>
+          <button id="startMathBtn" class="btn primary">Mission starten</button>
+          <p class="small-note">Tipp: Höre die Aufgabe und tippe das Ergebnis ein.</p>
+        </section>
+
+        <section class="card panel hidden" id="mathQuizPanel">
+          <div class="quiz-top">
+            <h2>Rechne aus!</h2>
+            <p id="mathProgressText">Aufgabe 1 / 10</p>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="mathProgressFill"></div>
+          </div>
+          <div class="math-problem-display" id="mathProblemDisplay">3 &times; 7 = ?</div>
+          <div class="quiz-controls">
+            <button id="mathSpeakBtn" class="btn secondary">Vorlesen</button>
+            <input
+              id="mathInput"
+              type="number"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="Ergebnis eingeben"
+              aria-label="Ergebnis der Rechenaufgabe eingeben"
+            />
+            <button id="mathNextBtn" class="btn primary">Weiter</button>
+          </div>
+          <p id="mathQuizFeedback" class="feedback"></p>
         </section>
 
         <section class="card panel hidden" id="resultPanel">
