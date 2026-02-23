@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-23 09:19";
+const BUILD_DATE = "2026-02-23 09:27";
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
 const SNAKE_PLAY_BUNDLE_COST = 20;
@@ -175,6 +175,8 @@ const state = {
 
 const els = {
   setupPanel: document.getElementById("setupPanel"),
+  selectAllGroupsBtn: document.getElementById("selectAllGroupsBtn"),
+  selectNoGroupsBtn: document.getElementById("selectNoGroupsBtn"),
   quizPanel: document.getElementById("quizPanel"),
   resultPanel: document.getElementById("resultPanel"),
   letterGroup: document.getElementById("letterGroup"),
@@ -297,6 +299,12 @@ async function initialize() {
 
 function bindEvents() {
   els.startBtn.addEventListener("click", startQuiz);
+  els.selectAllGroupsBtn.addEventListener("click", () => {
+    for (const opt of els.letterGroup.options) opt.selected = true;
+  });
+  els.selectNoGroupsBtn.addEventListener("click", () => {
+    for (const opt of els.letterGroup.options) opt.selected = false;
+  });
   els.speakBtn.addEventListener("click", speakCurrentWord);
   els.nextBtn.addEventListener("click", submitCurrentAnswer);
   els.wordInput.addEventListener("keydown", (event) => {
@@ -609,27 +617,25 @@ function normalizeDoubleS(value) {
 function populateLetterGroupOptions() {
   els.letterGroup.innerHTML = "";
 
-  const allOption = document.createElement("option");
-  allOption.value = "all";
-  allOption.textContent = `Alle Buchstaben (${state.letterKeys.length} Gruppen)`;
-  els.letterGroup.appendChild(allOption);
-
   for (const letter of state.letterKeys) {
     const option = document.createElement("option");
     option.value = letter;
-    option.textContent = `Nur ${letter}`;
+    option.textContent = letter;
+    option.selected = true;
     els.letterGroup.appendChild(option);
   }
-
-  els.letterGroup.value = "all";
 }
 
 // ─── Quiz ───
 
 function startQuiz() {
-  const letterGroup = els.letterGroup.value;
+  const selectedGroups = [...els.letterGroup.selectedOptions].map(o => o.value);
+  if (!selectedGroups.length) {
+    setFeedback(els.quizFeedback, "Bitte mindestens eine Buchstabengruppe auswählen.", "bad");
+    return;
+  }
   const requestedSize = Number.parseInt(els.setSize.value, 10);
-  const pool = getWordPool(letterGroup);
+  const pool = getWordPool(selectedGroups);
 
   if (!pool.length) {
     setFeedback(els.quizFeedback, "Keine Wörter für diese Auswahl gefunden.", "bad");
@@ -649,15 +655,12 @@ function startQuiz() {
   speakCurrentWord();
 }
 
-function getWordPool(letterGroup) {
-  if (letterGroup === "all") {
-    const allWords = [];
-    for (const letter of state.letterKeys) {
-      allWords.push(...(state.wordBank[letter] ?? []));
-    }
-    return allWords;
+function getWordPool(letterGroups) {
+  const allWords = [];
+  for (const letter of letterGroups) {
+    allWords.push(...(state.wordBank[letter] ?? []));
   }
-  return state.wordBank[letterGroup] ?? [];
+  return allWords;
 }
 
 function renderCurrentWordState() {

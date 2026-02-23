@@ -30,9 +30,15 @@
           <h2>Neues Wort-Set starten</h2>
           <div class="controls-grid">
             <label>
-              Buchstabengruppe
-              <select id="letterGroup">
-                <option value="all">Wird geladen...</option>
+              <span class="label-row">
+                Buchstabengruppen
+                <span class="label-actions">
+                  <button type="button" class="btn-micro" id="selectAllGroupsBtn">Alle</button>
+                  <button type="button" class="btn-micro" id="selectNoGroupsBtn">Keine</button>
+                </span>
+              </span>
+              <select id="letterGroup" multiple>
+                <option value="__loading__" disabled selected>Wird geladen...</option>
               </select>
             </label>
             <label>

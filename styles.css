@@ -129,6 +129,53 @@ input {
   background: #ffffff;
 }
 
+select[multiple] {
+  padding: 0.25rem;
+  min-height: 7rem;
+  height: auto;
+}
+
+select[multiple] option {
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+select[multiple] option:checked {
+  background: linear-gradient(90deg, #0f766e, #14b8a6);
+  color: white;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.label-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.btn-micro {
+  border: 1px solid #94a3b8;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: "Nunito", sans-serif;
+  transition: background 0.12s, color 0.12s;
+}
+
+.btn-micro:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
 input:focus,
 select:focus {
   outline: none;
