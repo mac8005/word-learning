@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-22 14:30";
+const BUILD_DATE = "2026-02-23 08:59";
 
 const SHAPES = {
   I: [
@@ -577,102 +577,6 @@ function speakCurrentWord() {
   speakWord(word);
 }
 
-// ─── Edge TTS (Neural voices via WebSocket) ───
-
-const EDGE_TTS_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-const EDGE_TTS_WS_URL =
-  "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/token/web/dc/" +
-  EDGE_TTS_TOKEN;
-const EDGE_TTS_VOICE = "de-DE-KatjaNeural";
-const EDGE_TTS_TIMEOUT_MS = 5000;
-
-function escapeXml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-function edgeTTSSpeak(word) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const fail = (err) => { if (!settled) { settled = true; reject(err); } };
-    const ok = (v) => { if (!settled) { settled = true; resolve(v); } };
-
-    const ws = new WebSocket(EDGE_TTS_WS_URL);
-    const requestId = crypto.randomUUID().replaceAll("-", "");
-    const audioChunks = [];
-
-    const timer = setTimeout(() => {
-      ws.close();
-      fail(new Error("Edge TTS timeout"));
-    }, EDGE_TTS_TIMEOUT_MS);
-
-    ws.onopen = () => {
-      const ts = new Date().toISOString();
-      // Config
-      ws.send(
-        "X-Timestamp:" + ts + "\r\n" +
-        "Content-Type:application/json; charset=utf-8\r\n" +
-        "Path:speech.config\r\n\r\n" +
-        JSON.stringify({
-          context: {
-            synthesis: {
-              audio: {
-                metadataoptions: {
-                  sentenceBoundaryEnabled: "false",
-                  wordBoundaryEnabled: "false",
-                },
-                outputFormat: "audio-24khz-48kbitrate-mono-mp3",
-              },
-            },
-          },
-        })
-      );
-      // SSML request
-      ws.send(
-        "X-RequestId:" + requestId + "\r\n" +
-        "Content-Type:application/ssml+xml\r\n" +
-        "X-Timestamp:" + ts + "\r\n" +
-        "Path:ssml\r\n\r\n" +
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='de-DE'>" +
-        "<voice name='" + EDGE_TTS_VOICE + "'>" +
-        "<prosody rate='-20%'>" + escapeXml(word) + "</prosody>" +
-        "</voice></speak>"
-      );
-    };
-
-    ws.onmessage = (event) => {
-      if (event.data instanceof Blob) {
-        event.data.arrayBuffer().then((buf) => {
-          const view = new DataView(buf);
-          const headerLen = view.getUint16(0);
-          if (buf.byteLength > 2 + headerLen) {
-            audioChunks.push(buf.slice(2 + headerLen));
-          }
-        });
-      } else if (typeof event.data === "string" && event.data.includes("Path:turn.end")) {
-        clearTimeout(timer);
-        ws.close();
-        if (audioChunks.length === 0) {
-          fail(new Error("No audio data"));
-          return;
-        }
-        console.log("[TTS] Verwende Edge TTS (de-DE-KatjaNeural)");
-        const blob = new Blob(audioChunks, { type: "audio/mpeg" });
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.addEventListener("ended", () => URL.revokeObjectURL(url));
-        audio.play().then(ok).catch(fail);
-      }
-    };
-
-    ws.onerror = (e) => {
-      console.log("[TTS] Edge TTS WebSocket fehlgeschlagen, versuche nächsten Fallback");
-      clearTimeout(timer);
-      fail(new Error("WebSocket error"));
-    };
-  });
-}
-
 // ─── Google Translate TTS fallback ───
 
 const GOOGLE_TTS_TIMEOUT_MS = 3000;
@@ -743,23 +647,17 @@ function speakWord(word) {
   if (!word) return;
 
   // iOS Safari: speechSynthesis.speak() MUST be called synchronously inside
-  // a user-gesture handler.  Async promise chains (Edge TTS reject → Google
-  // timeout) lose the gesture context and Safari blocks all audio.
-  // Apple's built-in German voices are high quality, so this is fine.
+  // a user-gesture handler.  Async chains lose the gesture context and Safari
+  // blocks all audio.
   if (IS_IOS) {
     console.log("[TTS] iOS erkannt – verwende Speech Synthesis direkt");
     speakWordViaSynthesis(word);
     return;
   }
 
-  // Non-iOS: Edge TTS → Google Translate Audio → local Speech Synthesis
-  edgeTTSSpeak(word)
-    .catch(() => speakWordViaGoogleAudio(word))
-    .catch(() => {
-      if ("speechSynthesis" in window) {
-        speakWordViaSynthesis(word);
-      }
-    });
+  // Non-iOS: Google Translate Audio → local Speech Synthesis
+  speakWordViaGoogleAudio(word)
+    .catch(() => speakWordViaSynthesis(word));
 }
 
 function submitCurrentAnswer() {
