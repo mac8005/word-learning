@@ -13,6 +13,7 @@ Kinderfreundliche Schreiblern-App mit:
 - Prüfung auf exakte Schreibweise inkl. Gross-/Kleinschreibung
 - Korrekturmodus mit Fehleranzeige
 - Münzsystem + Tetris-Bonusspiel
+- Malrechnen-Modus mit auswählbaren 1er bis 10er Reihen (Aufgaben werden angezeigt & vorgelesen)
 
 ## Wörter erweitern
 

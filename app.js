@@ -8,6 +8,7 @@ const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
 const BUILD_DATE = "2026-02-23 09:44";
+const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
 const SNAKE_PLAY_BUNDLE_COST = 20;
@@ -120,7 +121,8 @@ const SNAKE_BASS = [
 const state = {
   wordBank: {},
   letterKeys: [],
-  quizWords: [],
+  quizMode: "words",
+  quizItems: [],
   answers: [],
   currentIndex: 0,
   quizActive: false,
@@ -175,19 +177,31 @@ const state = {
 
 const els = {
   setupPanel: document.getElementById("setupPanel"),
+  modeSelect: document.getElementById("modeSelect"),
   letterGroupPicker: document.getElementById("letterGroupPicker"),
   letterGroupCount: document.getElementById("letterGroupCount"),
   selectAllGroupsBtn: document.getElementById("selectAllGroupsBtn"),
   selectNoGroupsBtn: document.getElementById("selectNoGroupsBtn"),
+  wordSettings: document.getElementById("wordSettings"),
+  mathSettings: document.getElementById("mathSettings"),
+  tablePicker: document.getElementById("tablePicker"),
+  tableCount: document.getElementById("tableCount"),
+  selectAllTablesBtn: document.getElementById("selectAllTablesBtn"),
+  selectNoTablesBtn: document.getElementById("selectNoTablesBtn"),
   quizPanel: document.getElementById("quizPanel"),
   resultPanel: document.getElementById("resultPanel"),
+  setSizeLabel: document.getElementById("setSizeLabel"),
   setSize: document.getElementById("setSize"),
   startBtn: document.getElementById("startBtn"),
   speakBtn: document.getElementById("speakBtn"),
   nextBtn: document.getElementById("nextBtn"),
   wordInput: document.getElementById("wordInput"),
+  wordNote: document.getElementById("wordNote"),
+  mathNote: document.getElementById("mathNote"),
+  quizTitle: document.getElementById("quizTitle"),
   progressText: document.getElementById("progressText"),
   progressFill: document.getElementById("progressFill"),
+  taskDisplay: document.getElementById("taskDisplay"),
   letterSlots: document.getElementById("letterSlots"),
   quizFeedback: document.getElementById("quizFeedback"),
   ratingLabel: document.getElementById("ratingLabel"),
@@ -282,9 +296,11 @@ async function initialize() {
     state.wordBank = await loadWords();
     state.letterKeys = Object.keys(state.wordBank).sort((a, b) => a.localeCompare(b, "de-DE"));
     populateLetterGroupOptions();
+    populateTableOptions();
+    applyModeUI();
     els.startBtn.disabled = false;
     els.startBtn.textContent = "Mission starten";
-    setFeedback(els.quizFeedback, "Drücke Start und höre genau zu.", "ok");
+    setSetupFeedback();
   } catch (error) {
     console.error(error);
     els.startBtn.textContent = "Laden fehlgeschlagen";
@@ -298,6 +314,11 @@ async function initialize() {
 
 function bindEvents() {
   els.startBtn.addEventListener("click", startQuiz);
+  els.modeSelect.addEventListener("change", () => {
+    state.quizMode = els.modeSelect.value;
+    applyModeUI();
+    setSetupFeedback();
+  });
   els.selectAllGroupsBtn.addEventListener("click", () => {
     for (const pill of els.letterGroupPicker.querySelectorAll(".lg-pill")) {
       pill.classList.add("selected");
@@ -316,7 +337,25 @@ function bindEvents() {
     pill.classList.toggle("selected");
     updateLetterGroupCount();
   });
-  els.speakBtn.addEventListener("click", speakCurrentWord);
+  els.selectAllTablesBtn.addEventListener("click", () => {
+    for (const pill of els.tablePicker.querySelectorAll(".lg-pill")) {
+      pill.classList.add("selected");
+    }
+    updateTableCount();
+  });
+  els.selectNoTablesBtn.addEventListener("click", () => {
+    for (const pill of els.tablePicker.querySelectorAll(".lg-pill")) {
+      pill.classList.remove("selected");
+    }
+    updateTableCount();
+  });
+  els.tablePicker.addEventListener("click", (e) => {
+    const pill = e.target.closest(".lg-pill");
+    if (!pill) return;
+    pill.classList.toggle("selected");
+    updateTableCount();
+  });
+  els.speakBtn.addEventListener("click", speakCurrentItem);
   els.nextBtn.addEventListener("click", submitCurrentAnswer);
   els.wordInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -654,10 +693,87 @@ function updateLetterGroupCount() {
   }
 }
 
+function populateTableOptions() {
+  els.tablePicker.innerHTML = "";
+  for (const table of TABLE_OPTIONS) {
+    const pill = document.createElement("span");
+    pill.className = "lg-pill selected";
+    pill.dataset.value = String(table);
+    pill.textContent = `${table}er`;
+    els.tablePicker.appendChild(pill);
+  }
+  updateTableCount();
+}
+
+function updateTableCount() {
+  const total = els.tablePicker.querySelectorAll(".lg-pill").length;
+  const selected = els.tablePicker.querySelectorAll(".lg-pill.selected").length;
+  if (total === 0) {
+    els.tableCount.textContent = "";
+  } else if (selected === total) {
+    els.tableCount.textContent = `Alle ${total} Reihen ausgewählt`;
+  } else if (selected === 0) {
+    els.tableCount.textContent = "Keine Reihe ausgewählt";
+  } else {
+    els.tableCount.textContent = `${selected} von ${total} Reihen ausgewählt`;
+  }
+}
+
+function applyModeUI() {
+  const isMath = state.quizMode === "math";
+  els.wordSettings.classList.toggle("hidden", isMath);
+  els.mathSettings.classList.toggle("hidden", !isMath);
+  els.wordNote.classList.toggle("hidden", isMath);
+  els.mathNote.classList.toggle("hidden", !isMath);
+  els.setSizeLabel.textContent = isMath ? "Aufgaben pro Mission" : "Wörter pro Mission";
+  els.quizTitle.textContent = isMath ? "Löse die Aufgabe" : "Schreibe, was du hörst";
+  els.speakBtn.textContent = isMath ? "Aufgabe vorlesen" : "Wort vorlesen";
+  els.nextBtn.textContent = isMath ? "Nächste Aufgabe" : "Nächstes Wort";
+  els.wordInput.placeholder = isMath ? "Antwort eingeben" : "Wort hier eingeben";
+  els.wordInput.setAttribute(
+    "aria-label",
+    isMath ? "Antwort eingeben" : "Gesprochenes Wort eingeben"
+  );
+  for (const option of els.setSize.querySelectorAll("option")) {
+    const count = option.value;
+    option.textContent = `${count} ${isMath ? "Aufgaben" : "Wörter"}`;
+  }
+}
+
+function setSetupFeedback() {
+  if (state.quizMode === "math") {
+    setFeedback(els.quizFeedback, "Wähle Reihen und starte die Mission.", "ok");
+  } else {
+    setFeedback(els.quizFeedback, "Wähle ein Set und starte die Mission.", "ok");
+  }
+}
+
+function isMathMode() {
+  return state.quizMode === "math";
+}
+
+function modeNoun() {
+  return isMathMode() ? "Aufgabe" : "Wort";
+}
+
+function modeNounPlural() {
+  return isMathMode() ? "Aufgaben" : "Wörter";
+}
+
 // ─── Quiz ───
 
 function startQuiz() {
-  const selectedGroups = [...els.letterGroupPicker.querySelectorAll(".lg-pill.selected")].map(p => p.dataset.value);
+  state.quizMode = els.modeSelect.value;
+  applyModeUI();
+  if (isMathMode()) {
+    startMathQuiz();
+    return;
+  }
+  startWordQuiz();
+}
+
+function startWordQuiz() {
+  const selectedGroups = [...els.letterGroupPicker.querySelectorAll(".lg-pill.selected")].map((p) => p.dataset.value);
   if (!selectedGroups.length) {
     setFeedback(els.quizFeedback, "Bitte mindestens eine Buchstabengruppe auswählen.", "bad");
     return;
@@ -672,15 +788,75 @@ function startQuiz() {
 
   const shuffled = shuffle(pool.slice());
   const setSize = Math.min(requestedSize, shuffled.length);
-  state.quizWords = shuffled.slice(0, setSize);
+  state.quizItems = shuffled.slice(0, setSize).map((word) => ({
+    type: "word",
+    prompt: word,
+    answer: word,
+    displayText: "",
+    speakText: word,
+  }));
   state.answers = [];
   state.currentIndex = 0;
   state.quizActive = true;
   state.correctionBonusGiven = false;
 
   setPanelVisibility({ setup: false, quiz: true, result: false });
-  renderCurrentWordState();
-  speakCurrentWord();
+  renderCurrentQuizState();
+  speakCurrentItem();
+}
+
+function startMathQuiz() {
+  const selectedTables = [...els.tablePicker.querySelectorAll(".lg-pill.selected")].map((p) =>
+    Number.parseInt(p.dataset.value ?? "0", 10)
+  ).filter((value) => Number.isFinite(value) && value > 0);
+
+  if (!selectedTables.length) {
+    setFeedback(els.quizFeedback, "Bitte mindestens eine Reihe auswählen.", "bad");
+    return;
+  }
+
+  const requestedSize = Number.parseInt(els.setSize.value, 10);
+  const tasks = buildMathTasks(selectedTables, requestedSize);
+  if (!tasks.length) {
+    setFeedback(els.quizFeedback, "Keine Aufgaben für diese Auswahl gefunden.", "bad");
+    return;
+  }
+
+  state.quizItems = tasks.map((task) => {
+    const displayText = `${task.a} × ${task.b}`;
+    return {
+      type: "math",
+      prompt: `${task.a} x ${task.b}`,
+      answer: task.a * task.b,
+      displayText,
+      speakText: `${task.a} mal ${task.b}`,
+    };
+  });
+  state.answers = [];
+  state.currentIndex = 0;
+  state.quizActive = true;
+  state.correctionBonusGiven = false;
+
+  setPanelVisibility({ setup: false, quiz: true, result: false });
+  renderCurrentQuizState();
+  speakCurrentItem();
+}
+
+function buildMathTasks(tables, count) {
+  const pool = [];
+  for (const table of tables) {
+    for (let factor = 0; factor <= 10; factor += 1) {
+      pool.push({ a: table, b: factor });
+    }
+  }
+  if (!pool.length) return [];
+  const shuffled = shuffle(pool.slice());
+  const tasks = [];
+  for (let i = 0; i < count; i += 1) {
+    const next = shuffled[i] ?? pool[Math.floor(Math.random() * pool.length)];
+    tasks.push(next);
+  }
+  return tasks;
 }
 
 function getWordPool(letterGroups) {
@@ -691,36 +867,50 @@ function getWordPool(letterGroups) {
   return allWords;
 }
 
-function renderCurrentWordState() {
-  const currentWord = state.quizWords[state.currentIndex];
-  if (!currentWord) {
+function renderCurrentQuizState() {
+  const currentItem = state.quizItems[state.currentIndex];
+  if (!currentItem) {
     return;
   }
 
-  const total = state.quizWords.length;
+  const total = state.quizItems.length;
   const progressPercent = (state.currentIndex / total) * 100;
-  els.progressText.textContent = `Wort ${state.currentIndex + 1} / ${total}`;
+  els.progressText.textContent = `${modeNoun()} ${state.currentIndex + 1} / ${total}`;
   els.progressFill.style.width = `${Math.max(6, progressPercent)}%`;
 
-  els.letterSlots.innerHTML = "";
-  for (const char of currentWord) {
-    if (char === " ") continue;
-    const bubble = document.createElement("span");
-    bubble.className = "slot";
-    els.letterSlots.appendChild(bubble);
+  if (isMathMode()) {
+    els.taskDisplay.textContent = currentItem.displayText ?? "";
+    els.taskDisplay.classList.remove("hidden");
+    els.letterSlots.classList.add("hidden");
+    els.letterSlots.innerHTML = "";
+  } else {
+    els.taskDisplay.classList.add("hidden");
+    els.letterSlots.classList.remove("hidden");
+    els.letterSlots.innerHTML = "";
+    for (const char of currentItem.answer) {
+      if (char === " ") continue;
+      const bubble = document.createElement("span");
+      bubble.className = "slot";
+      els.letterSlots.appendChild(bubble);
+    }
   }
 
   els.wordInput.value = "";
   els.wordInput.focus();
-  setFeedback(els.quizFeedback, "Hören und tippen. Das Wort wird nicht angezeigt.", "ok");
+  if (isMathMode()) {
+    setFeedback(els.quizFeedback, "Hören und rechnen. Die Aufgabe wird angezeigt.", "ok");
+  } else {
+    setFeedback(els.quizFeedback, "Hören und tippen. Das Wort wird nicht angezeigt.", "ok");
+  }
 }
 
-function speakCurrentWord() {
+function speakCurrentItem() {
   if (!state.quizActive) {
     return;
   }
-  const word = state.quizWords[state.currentIndex];
-  speakWord(word);
+  const item = state.quizItems[state.currentIndex];
+  if (!item) return;
+  speakWord(item.speakText);
 }
 
 // ─── Google Translate TTS fallback ───
@@ -811,32 +1001,59 @@ function submitCurrentAnswer() {
     return;
   }
 
-  const userInput = normalizeDoubleS(els.wordInput.value.trim());
-  if (!userInput) {
-    setFeedback(els.quizFeedback, "Bitte erst ein Wort eingeben.", "bad");
+  const currentItem = state.quizItems[state.currentIndex];
+  if (!currentItem) {
     return;
   }
 
-  const target = state.quizWords[state.currentIndex];
-  const correct = userInput === target;
-  const caseOnlyError =
-    !correct && userInput.localeCompare(target, "de-DE", { sensitivity: "base" }) === 0;
+  const rawInput = els.wordInput.value.trim();
+  if (!rawInput) {
+    setFeedback(
+      els.quizFeedback,
+      isMathMode() ? "Bitte erst eine Antwort eingeben." : "Bitte erst ein Wort eingeben.",
+      "bad"
+    );
+    return;
+  }
 
-  state.answers.push({
-    target,
-    userInput,
-    correct,
-    caseOnlyError,
-  });
+  if (isMathMode()) {
+    if (!/^\d+$/.test(rawInput)) {
+      setFeedback(els.quizFeedback, "Bitte nur Zahlen eingeben.", "bad");
+      return;
+    }
+    const userValue = Number.parseInt(rawInput, 10);
+    const correct = userValue === currentItem.answer;
+    state.answers.push({
+      target: String(currentItem.answer),
+      userInput: rawInput,
+      correct,
+      caseOnlyError: false,
+      prompt: currentItem.prompt,
+    });
+  } else {
+    const userInput = normalizeDoubleS(rawInput);
+    const target = currentItem.answer;
+    const correct = userInput === target;
+    const caseOnlyError =
+      !correct && userInput.localeCompare(target, "de-DE", { sensitivity: "base" }) === 0;
+
+    state.answers.push({
+      target,
+      userInput,
+      correct,
+      caseOnlyError,
+      prompt: currentItem.prompt,
+    });
+  }
 
   state.currentIndex += 1;
-  if (state.currentIndex >= state.quizWords.length) {
+  if (state.currentIndex >= state.quizItems.length) {
     finishQuiz();
     return;
   }
 
-  renderCurrentWordState();
-  speakCurrentWord();
+  renderCurrentQuizState();
+  speakCurrentItem();
 }
 
 function finishQuiz() {
@@ -865,8 +1082,8 @@ function finishQuiz() {
 
 function getRating(percent) {
   if (percent >= 95) return "Galaxie-Grossmeister";
-  if (percent >= 80) return "Wort-Held";
-  if (percent >= 60) return "Starker Schreiber";
+  if (percent >= 80) return "Lern-Held";
+  if (percent >= 60) return "Starker Denker";
   return "Lern-Entdecker";
 }
 
@@ -879,16 +1096,18 @@ function renderMistakes() {
   setFeedback(els.correctionFeedback, "", "ok");
 
   if (!mistakes.length) {
+    const nounPlural = modeNounPlural();
     els.mistakesBlock.innerHTML = `
       <h3>Perfekte Mission</h3>
-      <p>Alle Wörter waren richtig. Stark!</p>
+      <p>Alle ${nounPlural} waren richtig. Stark!</p>
     `;
     return;
   }
 
+  const nounPlural = modeNounPlural();
   els.mistakesBlock.innerHTML = `
     <h3>Fehler-Labor</h3>
-    <p>Korrigiere die falschen Wörter und hole Bonus-Münzen.</p>
+    <p>Korrigiere die falschen ${nounPlural} und hole Bonus-Münzen.</p>
     <div id="mistakesList"></div>
     <button id="checkCorrectionsBtn" class="btn primary">Korrekturen prüfen</button>
     <p id="correctionFeedback" class="feedback"></p>
@@ -903,16 +1122,28 @@ function renderMistakes() {
     const row = document.createElement("div");
     row.className = "mistake-item";
     row.dataset.answerIndex = String(mistake.index);
-    const detail = mistake.caseOnlyError
-      ? "Buchstaben stimmen, aber Gross-/Kleinschreibung ist falsch."
-      : "Die Schreibweise ist falsch.";
+    let detail = "";
+    if (isMathMode()) {
+      detail = "Die Rechnung ist falsch.";
+    } else {
+      detail = mistake.caseOnlyError
+        ? "Buchstaben stimmen, aber Gross-/Kleinschreibung ist falsch."
+        : "Die Schreibweise ist falsch.";
+    }
+    const wrongLabel = isMathMode() ? "Falsche Antwort vorlesen" : "Falsche Eingabe vorlesen";
+    const correctLabel = isMathMode() ? "Richtige Antwort vorlesen" : "Richtiges Wort vorlesen";
+    const inputPlaceholder = isMathMode() ? "Korrekte Antwort eingeben" : "Korrektes Wort eingeben";
+    const promptLine = isMathMode()
+      ? `<p class="mistake-meta">Aufgabe: <strong>${escapeHtml(mistake.prompt ?? "")}</strong></p>`
+      : "";
 
     row.innerHTML = `
       <div class="mistake-title">Nochmal versuchen</div>
-      <p class="mistake-meta">Deine Eingabe: <strong>${escapeHtml(mistake.userInput)}</strong> <button type="button" class="btn secondary speak-wrong">Falsche Eingabe vorlesen</button></p>
+      ${promptLine}
+      <p class="mistake-meta">Deine ${isMathMode() ? "Antwort" : "Eingabe"}: <strong>${escapeHtml(mistake.userInput)}</strong> <button type="button" class="btn secondary speak-wrong">${wrongLabel}</button></p>
       <p class="mistake-meta">${detail}</p>
-      <button type="button" class="btn secondary retry-audio">Richtiges Wort vorlesen</button>
-      <input type="text" class="correction-input" placeholder="Korrektes Wort eingeben" />
+      <button type="button" class="btn secondary retry-audio">${correctLabel}</button>
+      <input type="text" class="correction-input" placeholder="${inputPlaceholder}" />
     `;
 
     const retryAudioButton = row.querySelector(".retry-audio");
@@ -960,26 +1191,49 @@ function checkCorrections() {
       continue;
     }
 
-    const proposed = normalizeDoubleS(correctionInput.value.trim());
+    const rawValue = correctionInput.value.trim();
     const target = state.answers[answerIndex]?.target;
-    if (!target || proposed !== target) {
-      if (target) {
-        console.log(`[Korrektur] Richtiges Wort: ${target}`);
-      }
+    if (!target) {
       allCorrectNow = false;
       row.classList.remove("corrected");
       continue;
     }
 
-    console.log(`[Korrektur] Richtiges Wort: ${target}`);
-    row.classList.add("corrected");
-    fixedCount += 1;
+    if (isMathMode()) {
+      if (!/^\d+$/.test(rawValue)) {
+        allCorrectNow = false;
+        row.classList.remove("corrected");
+        continue;
+      }
+      const proposedNumber = Number.parseInt(rawValue, 10);
+      const targetNumber = Number.parseInt(target, 10);
+      if (proposedNumber !== targetNumber) {
+        console.log(`[Korrektur] Richtige Antwort: ${target}`);
+        allCorrectNow = false;
+        row.classList.remove("corrected");
+        continue;
+      }
+      console.log(`[Korrektur] Richtige Antwort: ${target}`);
+      row.classList.add("corrected");
+      fixedCount += 1;
+    } else {
+      const proposed = normalizeDoubleS(rawValue);
+      if (proposed !== target) {
+        console.log(`[Korrektur] Richtiges Wort: ${target}`);
+        allCorrectNow = false;
+        row.classList.remove("corrected");
+        continue;
+      }
+      console.log(`[Korrektur] Richtiges Wort: ${target}`);
+      row.classList.add("corrected");
+      fixedCount += 1;
+    }
   }
 
   if (!allCorrectNow) {
     setFeedback(
       els.correctionFeedback,
-      `${fixedCount} korrigiert. Versuche die restlichen Wörter nochmal.`,
+      `${fixedCount} korrigiert. Versuche die restlichen ${modeNounPlural()} nochmal.`,
       "bad"
     );
     return;
@@ -1000,7 +1254,8 @@ function checkCorrections() {
 function resetToSetup() {
   state.quizActive = false;
   setPanelVisibility({ setup: true, quiz: false, result: false });
-  setFeedback(els.quizFeedback, "Wähle ein Set und starte die Mission.", "ok");
+  applyModeUI();
+  setSetupFeedback();
 }
 
 function setPanelVisibility({ setup, quiz, result }) {

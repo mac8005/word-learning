@@ -318,6 +318,18 @@ select:focus {
   overflow: hidden;
 }
 
+.task-display {
+  text-align: center;
+  font-family: "Baloo 2", cursive;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 800;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.9rem;
+  border: 2px dashed #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
 .progress-fill {
   height: 100%;
   width: 10%;

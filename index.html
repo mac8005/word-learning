@@ -27,43 +27,63 @@
 
       <main class="layout">
         <section class="card panel" id="setupPanel">
-          <h2>Neues Wort-Set starten</h2>
+          <h2>Neues Training starten</h2>
           <div class="controls-grid">
-            <div class="field-group">
-              <span class="label-row">
-                Buchstabengruppen
-                <span class="label-actions">
-                  <button type="button" class="btn-micro" id="selectAllGroupsBtn">Alle</button>
-                  <button type="button" class="btn-micro" id="selectNoGroupsBtn">Keine</button>
-                </span>
-              </span>
-              <div class="letter-group-picker loading" id="letterGroupPicker">
-                <span class="lg-placeholder">Wörter laden…</span>
-              </div>
-              <span class="lg-count" id="letterGroupCount"></span>
-            </div>
             <label>
-              Set-Groesse
+              Trainingsmodus
+              <select id="modeSelect">
+                <option value="words" selected>Wörter</option>
+                <option value="math">Malrechnen</option>
+              </select>
+            </label>
+            <div class="field-group">
+              <span id="setSizeLabel">Wörter pro Mission</span>
               <select id="setSize">
                 <option value="5">5 Wörter</option>
                 <option value="10" selected>10 Wörter</option>
                 <option value="15">15 Wörter</option>
                 <option value="20">20 Wörter</option>
               </select>
-            </label>
+            </div>
+          </div>
+          <div class="field-group" id="wordSettings">
+            <span class="label-row">
+              Buchstabengruppen
+              <span class="label-actions">
+                <button type="button" class="btn-micro" id="selectAllGroupsBtn">Alle</button>
+                <button type="button" class="btn-micro" id="selectNoGroupsBtn">Keine</button>
+              </span>
+            </span>
+            <div class="letter-group-picker loading" id="letterGroupPicker">
+              <span class="lg-placeholder">Wörter laden…</span>
+            </div>
+            <span class="lg-count" id="letterGroupCount"></span>
+          </div>
+          <div class="field-group hidden" id="mathSettings">
+            <span class="label-row">
+              Reihen auswählen
+              <span class="label-actions">
+                <button type="button" class="btn-micro" id="selectAllTablesBtn">Alle</button>
+                <button type="button" class="btn-micro" id="selectNoTablesBtn">Keine</button>
+              </span>
+            </span>
+            <div class="letter-group-picker" id="tablePicker"></div>
+            <span class="lg-count" id="tableCount"></span>
           </div>
           <button id="startBtn" class="btn primary">Mission starten</button>
-          <p class="small-note">Tipp: Gross- und Kleinschreibung wird genau geprüft.</p>
+          <p class="small-note" id="wordNote">Tipp: Gross- und Kleinschreibung wird genau geprüft.</p>
+          <p class="small-note hidden" id="mathNote">Tipp: Wähle eine oder mehrere Reihen und rechne mit Zahlen von 0 bis 10.</p>
         </section>
 
         <section class="card panel hidden" id="quizPanel">
           <div class="quiz-top">
-            <h2>Schreibe, was du hörst</h2>
+            <h2 id="quizTitle">Schreibe, was du hörst</h2>
             <p id="progressText">Wort 1 / 10</p>
           </div>
           <div class="progress-track">
             <div class="progress-fill" id="progressFill"></div>
           </div>
+          <div class="task-display hidden" id="taskDisplay"></div>
           <div class="letter-slots" id="letterSlots"></div>
           <div class="quiz-controls">
             <button id="speakBtn" class="btn secondary">Wort vorlesen</button>
