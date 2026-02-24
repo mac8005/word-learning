@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-24 14:54";
+const BUILD_DATE = "2026-02-24 16:07";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -28,10 +28,10 @@ const MH_H = 640;
 const MH_DURATION = 60;
 const MH_MAX_AMMO = 8;
 const MH_CHICKEN_TYPES = [
-  { name: "far",    speed: 1.2, points: 50,  w: 36, h: 28 },
-  { name: "med",    speed: 2.0, points: 25,  w: 56, h: 42 },
-  { name: "close",  speed: 3.2, points: 10,  w: 80, h: 60 },
-  { name: "bonus",  speed: 4.0, points: 100, w: 44, h: 34 },
+  { name: "far",    speed: 1.5, points: 50,  w: 30, h: 28 },
+  { name: "med",    speed: 2.2, points: 25,  w: 50, h: 46 },
+  { name: "close",  speed: 3.0, points: 10,  w: 78, h: 72 },
+  { name: "bonus",  speed: 4.5, points: 100, w: 38, h: 36 },
 ];
 
 // Moorhuhn 8-bit hunting theme melody [frequency, eighthNotes]
@@ -2355,33 +2355,94 @@ function playSfx(name) {
     playTone(210, 0.1, { type: "sawtooth", gain: 0.018, delay: 0.09, endFrequency: 130 });
     playTone(160, 0.12, { type: "sawtooth", gain: 0.018, delay: 0.19, endFrequency: 90 });
   } else if (name === "moorhuhnShot") {
-    // Gunshot: white noise burst + low thump
-    const ctx = ensureAudio();
-    if (ctx) {
-      const bufSize = ctx.sampleRate * 0.06;
-      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    // Shotgun: loud white noise burst with low-pass filter + bass sweep
+    const actx = ensureAudio();
+    if (actx) {
+      const now = actx.currentTime;
+      // White noise body (180ms, sharp decay)
+      const bufSize = Math.floor(actx.sampleRate * 0.18);
+      const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
       const data = buf.getChannelData(0);
-      for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
-      const src = ctx.createBufferSource();
+      for (let i = 0; i < bufSize; i++) {
+        const t = i / bufSize;
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.5);
+      }
+      const src = actx.createBufferSource();
       src.buffer = buf;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.06, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.06);
-      src.connect(g).connect(ctx.destination);
-      src.start();
+      const lpf = actx.createBiquadFilter();
+      lpf.type = "lowpass";
+      lpf.frequency.value = 4000;
+      const g = actx.createGain();
+      g.gain.setValueAtTime(0.4, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      src.connect(lpf).connect(g).connect(actx.destination);
+      src.start(now);
+      // Bass thump (100Hz → 40Hz sweep)
+      const bass = actx.createOscillator();
+      const bassG = actx.createGain();
+      bass.type = "sine";
+      bass.frequency.setValueAtTime(100, now);
+      bass.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+      bassG.gain.setValueAtTime(0.5, now);
+      bassG.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+      bass.connect(bassG).connect(actx.destination);
+      bass.start(now);
+      bass.stop(now + 0.16);
     }
-    playTone(80, 0.05, { type: "sine", gain: 0.04 });
   } else if (name === "moorhuhnHit") {
-    // Chicken squawk
-    playTone(800, 0.06, { type: "square", gain: 0.02, endFrequency: 1200 });
-    playTone(1000, 0.05, { type: "square", gain: 0.015, delay: 0.06, endFrequency: 600 });
+    // Chicken BWOK squawk: sawtooth sweep + brief noise burst (feathers)
+    const actx = ensureAudio();
+    if (actx) {
+      const now = actx.currentTime;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.18);
+      osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+      g.gain.setValueAtTime(0.25, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+      osc.connect(g).connect(actx.destination);
+      osc.start(now);
+      osc.stop(now + 0.41);
+      // Brief feather noise burst
+      const nbuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.05), actx.sampleRate);
+      const nd = nbuf.getChannelData(0);
+      for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+      const nsrc = actx.createBufferSource();
+      nsrc.buffer = nbuf;
+      const ng = actx.createGain();
+      ng.gain.setValueAtTime(0.1, now);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+      nsrc.connect(ng).connect(actx.destination);
+      nsrc.start(now);
+    }
   } else if (name === "moorhuhnReload") {
-    // Metallic click
-    playTone(600, 0.03, { type: "square", gain: 0.02 });
-    playTone(400, 0.04, { type: "triangle", gain: 0.015, delay: 0.05 });
+    // Two metallic shell clicks: ejection + loading
+    const actx = ensureAudio();
+    if (actx) {
+      const now = actx.currentTime;
+      const makeClick = (when, vol) => {
+        const nbuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.04), actx.sampleRate);
+        const nd = nbuf.getChannelData(0);
+        for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+        const src = actx.createBufferSource();
+        src.buffer = nbuf;
+        const lpf = actx.createBiquadFilter();
+        lpf.type = "bandpass";
+        lpf.frequency.value = 3000;
+        const g = actx.createGain();
+        g.gain.setValueAtTime(vol, when);
+        g.gain.exponentialRampToValueAtTime(0.0001, when + 0.04);
+        src.connect(lpf).connect(g).connect(actx.destination);
+        src.start(when);
+      };
+      makeClick(now, 0.2);         // ejection
+      makeClick(now + 0.15, 0.15); // loading
+    }
   } else if (name === "moorhuhnEmpty") {
-    // Dry click
-    playTone(150, 0.03, { type: "square", gain: 0.01 });
+    // Sharp dry click
+    playTone(2000, 0.02, { type: "square", gain: 0.08 });
   }
 }
 
@@ -2830,7 +2891,7 @@ function startMoorhuhnGame() {
   state.moorhuhn.spawnTimer = setInterval(() => {
     if (state.moorhuhn.paused) return;
     spawnChicken();
-  }, 1200);
+  }, 900);
 
   state.moorhuhn.rafId = requestAnimationFrame(runMoorhuhnFrame);
 }
@@ -2913,7 +2974,7 @@ function initMoorhuhnRound() {
   }
 
   // Spawn a few initial chickens
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     spawnChicken();
   }
 
@@ -2932,15 +2993,20 @@ function spawnChicken() {
 
   const type = MH_CHICKEN_TYPES[typeIdx];
   const fromLeft = Math.random() < 0.5;
-  const margin = 200; // extra margin for parallax
-  const x = fromLeft ? -type.w - margin : MH_W + type.w + margin;
-  const yMin = typeIdx === 0 ? 50 : typeIdx === 1 ? 120 : 250;
-  const yMax = typeIdx === 0 ? 180 : typeIdx === 1 ? 340 : 480;
+  const x = fromLeft ? -type.w - 10 : MH_W + 10;
+  // Y ranges: far=sky, med=mid-sky, close=lower, bonus=upper-mid
+  const yRanges = [
+    [45, 170],   // far: high sky
+    [110, 350],  // med: mid sky
+    [200, 440],  // close: lower
+    [60, 300],   // bonus: upper-mid
+  ];
+  const [yMin, yMax] = yRanges[typeIdx];
   const y = yMin + Math.random() * (yMax - yMin);
   const vx = (fromLeft ? 1 : -1) * (type.speed + Math.random() * 0.5);
 
-  // Flight pattern
-  const patterns = ["straight", "wavy", "diving"];
+  // Flight pattern — far chickens fly straight at distance
+  const patterns = typeIdx === 0 ? ["straight"] : ["straight", "wavy", "diving"];
   const pattern = patterns[Math.floor(Math.random() * patterns.length)];
 
   mh.chickens.push({
@@ -2993,8 +3059,8 @@ function runMoorhuhnFrame(ts) {
       c.y = c.baseY + Math.sin(c.phase * 0.7) * 60;
     }
 
-    // Remove off-screen chickens (account for parallax margin)
-    if ((c.vx > 0 && c.x > MH_W + c.w + 200) || (c.vx < 0 && c.x < -c.w - 200)) {
+    // Remove off-screen chickens
+    if ((c.vx > 0 && c.x > MH_W + c.w) || (c.vx < 0 && c.x < -c.w)) {
       mh.chickens.splice(i, 1);
     }
   }
@@ -3064,23 +3130,17 @@ function handleMoorhuhnShoot(canvasX, canvasY) {
   playSfx("moorhuhnShot");
 
   // Hit detection - check from front (close) to back (far) for proper layering
+  // Chickens are drawn at c.x directly (no parallax offset), so compare canvasX to c.x
   let hitChicken = null;
   const sortedChickens = [...mh.chickens].filter(c => !c.hit);
   sortedChickens.sort((a, b) => b.typeIdx - a.typeIdx);
 
-  // Parallax offsets per layer (must match drawing offsets)
-  const vxNow = mh.viewX;
-  const pxMap = { 0: -vxNow * 50, 3: -vxNow * 80, 1: -vxNow * 80, 2: -vxNow * 120 };
-
   for (const c of sortedChickens) {
-    const px = pxMap[c.typeIdx] || 0;
-    const screenX = c.x + px;
-    const screenY = c.y;
     if (
-      canvasX >= screenX - c.w / 2 &&
-      canvasX <= screenX + c.w / 2 &&
-      canvasY >= screenY - c.h / 2 &&
-      canvasY <= screenY + c.h / 2
+      canvasX >= c.x - c.w / 2 &&
+      canvasX <= c.x + c.w / 2 &&
+      canvasY >= c.y - c.h / 2 &&
+      canvasY <= c.y + c.h / 2
     ) {
       hitChicken = c;
       break;
@@ -3094,20 +3154,15 @@ function handleMoorhuhnShoot(canvasX, canvasY) {
     mh.score += hitChicken.points;
     updateMoorhuhnStats();
 
-    // Use screen position for particles/popups
-    const px = pxMap[hitChicken.typeIdx] || 0;
-    const screenHitX = hitChicken.x + px;
-    const screenHitY = hitChicken.y;
-
-    // Spawn feather particles
+    // Spawn feather particles at chicken's canvas position
     const featherColors = hitChicken.typeIdx === 3
       ? ["#fbbf24", "#f59e0b", "#fde68a"]
       : ["#8B4513", "#6b3a1f", "#c49a5c", "#5c3317"];
     for (let i = 0; i < 10; i++) {
       const angle = (i / 10) * Math.PI * 2;
       mh.particles.push({
-        x: screenHitX,
-        y: screenHitY,
+        x: hitChicken.x,
+        y: hitChicken.y,
         vx: Math.cos(angle) * (2 + Math.random() * 3),
         vy: Math.sin(angle) * (2 + Math.random() * 3) - 1.5,
         life: 1,
@@ -3117,8 +3172,8 @@ function handleMoorhuhnShoot(canvasX, canvasY) {
 
     // Score popup
     mh.scorePopups.push({
-      x: screenHitX,
-      y: screenHitY - 20,
+      x: hitChicken.x,
+      y: hitChicken.y - 20,
       text: `+${hitChicken.points}`,
       life: 1,
       color: hitChicken.typeIdx === 3 ? "#fbbf24" : "#ffffff",
@@ -3372,13 +3427,10 @@ function drawMoorhuhnScene(overlayText = "") {
   }
   ctx.restore();
 
-  // Far chickens (far parallax)
-  ctx.save();
-  ctx.translate(pxFar, 0);
+  // Far chickens — direct canvas coords, no parallax offset
   for (const c of mh.chickens) {
     if (c.typeIdx === 0) drawChicken(ctx, c);
   }
-  ctx.restore();
 
   // ── Mid hills (golden-green meadow) ──
   ctx.save();
@@ -3395,16 +3447,13 @@ function drawMoorhuhnScene(overlayText = "") {
   }
   ctx.restore();
 
-  // Bonus + Med chickens (mid parallax)
-  ctx.save();
-  ctx.translate(pxMid, 0);
+  // Bonus + Med chickens — direct canvas coords, no parallax offset
   for (const c of mh.chickens) {
     if (c.typeIdx === 3) drawChicken(ctx, c);
   }
   for (const c of mh.chickens) {
     if (c.typeIdx === 1) drawChicken(ctx, c);
   }
-  ctx.restore();
 
   // ── Near wheat meadow ──
   ctx.save();
@@ -3447,13 +3496,10 @@ function drawMoorhuhnScene(overlayText = "") {
   }
   ctx.restore();
 
-  // Close chickens (near parallax)
-  ctx.save();
-  ctx.translate(pxNear, 0);
+  // Close chickens — direct canvas coords, no parallax offset
   for (const c of mh.chickens) {
     if (c.typeIdx === 2) drawChicken(ctx, c);
   }
-  ctx.restore();
 
   // ── Fence (foreground parallax) ──
   ctx.save();
@@ -3519,6 +3565,9 @@ function drawMoorhuhnScene(overlayText = "") {
     ctx.stroke();
   }
   ctx.restore();
+
+  // ── Foreground mascot chicken (decorative, not shootable) ──
+  drawMhForegroundChicken(ctx, W, H);
 
   // ── Particles (feathers) ──
   for (const p of mh.particles) {
@@ -4188,6 +4237,194 @@ function drawStar(ctx, cx, cy, outerR, innerR, points) {
   }
   ctx.closePath();
   ctx.fill();
+}
+
+function drawMhForegroundChicken(ctx, W, H) {
+  // Large decorative mascot chicken at bottom-right, facing left (looking toward viewer)
+  const bw = 160;
+  const bh = 200;
+  const bx = W - 130; // anchor = body center X
+  const by = H - 30;  // anchor = body center Y (feet near bottom)
+
+  ctx.save();
+  ctx.translate(bx, by);
+  // Face left
+  ctx.scale(-1, 1);
+
+  const w = bw;
+  const h = bh;
+
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.13)";
+  ctx.beginPath();
+  ctx.ellipse(10, h * 0.28, w * 0.34, h * 0.08, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tail feathers
+  const tailColors = ["#7a5828", "#8a6838", "#604820"];
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = tailColors[i % tailColors.length];
+    ctx.save();
+    ctx.translate(-w * 0.34, -h * 0.04);
+    ctx.rotate(-0.3 - i * 0.18);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w * 0.36, h * 0.07, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Legs (standing)
+  ctx.strokeStyle = "#c4801e";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.08, h * 0.25);
+  ctx.lineTo(-w * 0.10, h * 0.46);
+  ctx.lineTo(-w * 0.16, h * 0.50);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.16, h * 0.50);
+  ctx.lineTo(-w * 0.24, h * 0.52);
+  ctx.moveTo(-w * 0.16, h * 0.50);
+  ctx.lineTo(-w * 0.08, h * 0.52);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w * 0.05, h * 0.25);
+  ctx.lineTo(w * 0.04, h * 0.46);
+  ctx.lineTo(-w * 0.03, h * 0.50);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.03, h * 0.50);
+  ctx.lineTo(-w * 0.11, h * 0.52);
+  ctx.moveTo(-w * 0.03, h * 0.50);
+  ctx.lineTo(0.04 * w, h * 0.52);
+  ctx.stroke();
+
+  // Body
+  ctx.fillStyle = "#9a6830";
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w * 0.37, h * 0.30, 0.05, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#c8904a";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w * 0.35, h * 0.29, 0.05, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#e8d0a8";
+  ctx.beginPath();
+  ctx.ellipse(w * 0.03, h * 0.07, w * 0.21, h * 0.18, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.beginPath();
+  ctx.ellipse(-w * 0.08, -h * 0.12, w * 0.13, h * 0.08, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wing (relaxed position)
+  ctx.save();
+  ctx.translate(-w * 0.05, -h * 0.06);
+  ctx.rotate(0.15);
+  ctx.fillStyle = "#7a5020";
+  ctx.beginPath();
+  ctx.ellipse(0, -h * 0.17, w * 0.30, h * 0.13, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#a07038";
+  ctx.beginPath();
+  ctx.ellipse(0, -h * 0.19, w * 0.28, h * 0.11, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.1)";
+  ctx.lineWidth = 0.8;
+  for (let f = 0; f < 3; f++) {
+    const fx = -w * 0.14 + f * w * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(fx, -h * 0.11);
+    ctx.lineTo(fx - w * 0.05, -h * 0.27);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Neck
+  ctx.fillStyle = "#c8904a";
+  ctx.beginPath();
+  ctx.ellipse(w * 0.24, -h * 0.17, w * 0.10, h * 0.13, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  const headR = h * 0.19;
+  const headX = w * 0.31;
+  const headY = -h * 0.31;
+  ctx.fillStyle = "#9a6830";
+  ctx.beginPath();
+  ctx.arc(headX + 2, headY + 2, headR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#c89050";
+  ctx.beginPath();
+  ctx.arc(headX, headY, headR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  ctx.beginPath();
+  ctx.arc(headX - headR * 0.2, headY - headR * 0.3, headR * 0.52, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Comb
+  ctx.fillStyle = "#e02020";
+  ctx.beginPath();
+  ctx.arc(headX - headR * 0.15, headY - headR * 0.82, headR * 0.32, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(headX + headR * 0.12, headY - headR * 0.92, headR * 0.26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(headX - headR * 0.38, headY - headR * 0.7, headR * 0.24, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wattle
+  ctx.fillStyle = "#e02020";
+  ctx.beginPath();
+  ctx.ellipse(headX + headR * 0.52, headY + headR * 0.52, headR * 0.15, headR * 0.28, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye
+  const eyeX = headX + headR * 0.28;
+  const eyeY = headY - headR * 0.14;
+  const eyeR = headR * 0.38;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.ellipse(eyeX, eyeY, eyeR * 1.05, eyeR, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#2a1a0a";
+  ctx.beginPath();
+  ctx.arc(eyeX + eyeR * 0.15, eyeY, eyeR * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#000000";
+  ctx.beginPath();
+  ctx.arc(eyeX + eyeR * 0.2, eyeY, eyeR * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.beginPath();
+  ctx.arc(eyeX + eyeR * 0.05, eyeY - eyeR * 0.22, eyeR * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#6a3818";
+  ctx.lineWidth = Math.max(1.5, headR * 0.11);
+  ctx.beginPath();
+  ctx.arc(eyeX, eyeY, eyeR, -Math.PI * 0.8, -Math.PI * 0.2);
+  ctx.stroke();
+
+  // Beak
+  const beakLen = headR * 1.05;
+  ctx.fillStyle = "#e8920a";
+  ctx.beginPath();
+  ctx.moveTo(headX + headR * 0.7, headY - headR * 0.1);
+  ctx.lineTo(headX + headR * 0.7 + beakLen, headY + headR * 0.08);
+  ctx.lineTo(headX + headR * 0.7, headY + headR * 0.26);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#c87208";
+  ctx.beginPath();
+  ctx.moveTo(headX + headR * 0.7, headY + headR * 0.1);
+  ctx.lineTo(headX + headR * 0.7 + beakLen * 0.8, headY + headR * 0.15);
+  ctx.lineTo(headX + headR * 0.7, headY + headR * 0.28);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
 }
 
 // ─── Moorhuhn SFX ───
