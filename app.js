@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-23 09:44";
+const BUILD_DATE = "2026-02-24 14:54";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -240,6 +240,9 @@ const state = {
     fencePosts: [],
     viewX: 0,         // parallax offset based on mouse position (-1 to +1)
     sceneWidth: 1200,  // virtual scene width (wider than canvas for scrolling)
+    windmillAngle: 0,  // rotating windmill blades
+    balloonY: 110,     // hot air balloon vertical position
+    balloonDir: 1,     // balloon drift direction
   },
 };
 
@@ -2847,6 +2850,9 @@ function initMoorhuhnRound() {
   mh.crosshairY = MH_H / 2;
   mh.muzzleFlash = 0;
   mh.viewX = 0;
+  mh.windmillAngle = 0;
+  mh.balloonY = 110;
+  mh.balloonDir = 1;
 
   const SW = mh.sceneWidth; // virtual scene width for parallax elements
 
@@ -3028,6 +3034,11 @@ function runMoorhuhnFrame(ts) {
 
   // Scroll background slightly
   mh.bgScrollX += 0.2;
+
+  // Animate windmill and balloon
+  mh.windmillAngle += 0.006;
+  mh.balloonY += mh.balloonDir * 0.04;
+  if (mh.balloonY > 130 || mh.balloonY < 80) mh.balloonDir *= -1;
 
   drawMoorhuhnScene();
   mh.rafId = requestAnimationFrame(runMoorhuhnFrame);
@@ -3302,37 +3313,40 @@ function drawMoorhuhnScene(overlayText = "") {
   const pxNear = -vx * 120;
   const pxFg = -vx * 160;
 
-  // ── Sky: autumn sunset gradient ──
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
-  skyGrad.addColorStop(0, "#4a90c4");
-  skyGrad.addColorStop(0.25, "#7bbad4");
-  skyGrad.addColorStop(0.5, "#c9dba8");
-  skyGrad.addColorStop(0.75, "#f0d48a");
-  skyGrad.addColorStop(1, "#e8a64c");
+  // ── Sky: warm golden Moorhuhn sky ──
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.62);
+  skyGrad.addColorStop(0,    "#4a85b8");
+  skyGrad.addColorStop(0.2,  "#6aa0c8");
+  skyGrad.addColorStop(0.45, "#a8c8d0");
+  skyGrad.addColorStop(0.7,  "#c8d890");
+  skyGrad.addColorStop(0.88, "#d4b858");
+  skyGrad.addColorStop(1,    "#c8a040");
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Sun glow (moves very slightly with parallax)
-  const sunX = W * 0.8 + pxSky;
-  const sunY = 90;
-  const sunGrad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 160);
-  sunGrad.addColorStop(0, "rgba(255, 240, 180, 0.9)");
-  sunGrad.addColorStop(0.3, "rgba(255, 220, 120, 0.4)");
-  sunGrad.addColorStop(1, "rgba(255, 200, 80, 0)");
-  ctx.fillStyle = sunGrad;
-  ctx.fillRect(0, 0, W, H * 0.6);
-
-  // Sun disc
-  ctx.fillStyle = "#fff4c2";
+  // Sun (large, warm, slightly hazy)
+  const sunX = W * 0.78 + pxSky;
+  const sunY = 72;
+  const sunGlowGrad = ctx.createRadialGradient(sunX, sunY, 8, sunX, sunY, 180);
+  sunGlowGrad.addColorStop(0,   "rgba(255, 250, 200, 0.95)");
+  sunGlowGrad.addColorStop(0.15,"rgba(255, 230, 140, 0.55)");
+  sunGlowGrad.addColorStop(0.4, "rgba(255, 210, 80, 0.2)");
+  sunGlowGrad.addColorStop(1,   "rgba(255, 190, 50, 0)");
+  ctx.fillStyle = sunGlowGrad;
+  ctx.fillRect(0, 0, W, H * 0.55);
+  ctx.fillStyle = "#fffae8";
   ctx.beginPath();
-  ctx.arc(sunX, sunY, 28, 0, Math.PI * 2);
+  ctx.arc(sunX, sunY, 30, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "rgba(255, 250, 220, 0.5)";
+  ctx.fillStyle = "rgba(255,252,230,0.45)";
   ctx.beginPath();
-  ctx.arc(sunX, sunY, 40, 0, Math.PI * 2);
+  ctx.arc(sunX, sunY, 44, 0, Math.PI * 2);
   ctx.fill();
 
-  // ── Clouds (parallax: between sky and distant) ──
+  // ── Hot air balloon (sky layer) ──
+  drawMhBalloon(ctx, 175 + pxSky * 0.4, mh.balloonY, 42);
+
+  // ── Clouds ──
   for (const cloud of mh.clouds) {
     drawMhCloud(ctx, { ...cloud, x: cloud.x + pxDistant * 0.5 });
   }
@@ -3340,25 +3354,25 @@ function drawMoorhuhnScene(overlayText = "") {
   // ── Distant mountains (bluish-purple haze) ──
   ctx.save();
   ctx.translate(pxDistant, 0);
-  drawMhHillCurve(ctx, W + 80, H, 200, "#6b7fa3",
-    [40, 10, -30, -50, -20, 15, -40, -65, -35, 0, 25, 5, -20]);
-  drawMhHillCurve(ctx, W + 80, H, 220, "#7a8c6e",
-    [20, -5, -25, -10, 15, -15, -30, -10, 10, -20, 0, 15, -5]);
+  drawMhHillCurve(ctx, W + 80, H, 195, "#7080a0",
+    [40, 10, -30, -55, -20, 15, -45, -70, -35, 0, 28, 5, -20]);
+  drawMhHillCurve(ctx, W + 80, H, 218, "#7a8f6a",
+    [20, -5, -22, -10, 18, -12, -28, -10, 12, -20, 0, 18, -5]);
   ctx.restore();
 
-  // ── Far hills (dark autumn green/brown) ──
+  // ── Far hills (dark green) ──
   ctx.save();
   ctx.translate(pxFar, 0);
-  drawMhHillCurve(ctx, W + 120, H, 280, "#5a6e3a",
-    [30, 5, -20, -40, -15, 10, -30, -50, -25, 5, 20, -10, 0]);
+  drawMhHillCurve(ctx, W + 120, H, 278, "#4e6430",
+    [30, 5, -20, -38, -15, 10, -30, -52, -25, 5, 22, -10, 0]);
 
-  // Draw far trees (layer 0)
+  // Far trees (layer 0)
   for (const tree of mh.trees) {
     if (tree.layer === 0) drawMhBareTree(ctx, tree);
   }
   ctx.restore();
 
-  // Far chickens fly here (use far parallax)
+  // Far chickens (far parallax)
   ctx.save();
   ctx.translate(pxFar, 0);
   for (const c of mh.chickens) {
@@ -3366,26 +3380,22 @@ function drawMoorhuhnScene(overlayText = "") {
   }
   ctx.restore();
 
-  // ── Mid hills (autumn green-brown) ──
+  // ── Mid hills (golden-green meadow) ──
   ctx.save();
   ctx.translate(pxMid, 0);
-  drawMhHillCurve(ctx, W + 200, H, 370, "#6e7d3e",
-    [20, 0, -30, -15, 10, -25, -40, -10, 5, -20, 15, 0, -10]);
+  drawMhHillCurve(ctx, W + 200, H, 360, "#7a8840",
+    [22, 0, -28, -14, 12, -22, -38, -10, 5, -18, 15, 0, -10]);
 
-  // Autumn grass texture on mid hills
-  const grassGrad = ctx.createLinearGradient(0, 370, 0, 430);
-  grassGrad.addColorStop(0, "rgba(139, 119, 42, 0.3)");
-  grassGrad.addColorStop(1, "rgba(139, 119, 42, 0)");
-  ctx.fillStyle = grassGrad;
-  ctx.fillRect(-200, 350, W + 400, 80);
+  // Windmill on the right side (characteristic of original Moorhuhn)
+  drawMhWindmill(ctx, W * 0.84, 395, 170, mh.windmillAngle);
 
-  // Draw mid trees (layer 1)
+  // Mid trees (layer 1)
   for (const tree of mh.trees) {
     if (tree.layer === 1) drawMhBareTree(ctx, tree);
   }
   ctx.restore();
 
-  // Bonus + Med chickens fly here (use mid parallax)
+  // Bonus + Med chickens (mid parallax)
   ctx.save();
   ctx.translate(pxMid, 0);
   for (const c of mh.chickens) {
@@ -3396,52 +3406,39 @@ function drawMoorhuhnScene(overlayText = "") {
   }
   ctx.restore();
 
-  // ── Near hills / meadow ──
+  // ── Near wheat meadow ──
   ctx.save();
   ctx.translate(pxNear, 0);
-  drawMhHillCurve(ctx, W + 300, H, 470, "#8a9a4a",
+  // Golden wheat hill curve
+  drawMhHillCurve(ctx, W + 300, H, 465, "#b89828",
     [15, 0, -10, 5, -15, 0, 10, -5, 0, 5, -10, 0, 8]);
 
-  // Ground fill
-  const gndGrad = ctx.createLinearGradient(0, 470, 0, H);
-  gndGrad.addColorStop(0, "#8a9a4a");
-  gndGrad.addColorStop(0.3, "#6b8035");
-  gndGrad.addColorStop(1, "#4a5c28");
-  ctx.fillStyle = gndGrad;
-  ctx.fillRect(-300, 470, W + 600, H - 470);
+  // Golden wheat field ground
+  const wheatGnd = ctx.createLinearGradient(0, 465, 0, H);
+  wheatGnd.addColorStop(0,   "#c4a030");
+  wheatGnd.addColorStop(0.18,"#b89028");
+  wheatGnd.addColorStop(0.5, "#9a7820");
+  wheatGnd.addColorStop(1,   "#6a5018");
+  ctx.fillStyle = wheatGnd;
+  ctx.fillRect(-300, 465, W + 600, H - 465);
 
-  // Dirt path
-  ctx.fillStyle = "#8b7355";
-  ctx.beginPath();
-  ctx.moveTo(W * 0.3, H);
-  ctx.quadraticCurveTo(W * 0.35, H - 80, W * 0.55, H - 140);
-  ctx.quadraticCurveTo(W * 0.65, H - 160, W * 0.7, H - 160);
-  ctx.quadraticCurveTo(W * 0.72, H - 160, W * 0.8, H - 130);
-  ctx.quadraticCurveTo(W * 0.9, H - 60, W * 0.85, H);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "rgba(180, 155, 120, 0.3)";
-  ctx.beginPath();
-  ctx.moveTo(W * 0.35, H);
-  ctx.quadraticCurveTo(W * 0.4, H - 70, W * 0.57, H - 130);
-  ctx.quadraticCurveTo(W * 0.64, H - 145, W * 0.68, H - 150);
-  ctx.quadraticCurveTo(W * 0.75, H - 140, W * 0.82, H - 100);
-  ctx.quadraticCurveTo(W * 0.88, H - 50, W * 0.82, H);
-  ctx.closePath();
-  ctx.fill();
-
-  // Grass tufts
-  ctx.strokeStyle = "#5a7030";
-  ctx.lineWidth = 2;
-  for (let gx = -200; gx < W + 200; gx += 35 + Math.sin(gx * 0.3) * 15) {
-    const gy = 500 + Math.sin(gx * 0.1) * 20;
-    if (gy > H) continue;
-    for (let j = 0; j < 3; j++) {
-      ctx.beginPath();
-      ctx.moveTo(gx + j * 4, gy);
-      ctx.quadraticCurveTo(gx + j * 4 - 3 + j * 2, gy - 10 - j * 3, gx + j * 4 - 5 + j * 4, gy - 18 - j * 2);
-      ctx.stroke();
-    }
+  // Dense wheat stalks across the field
+  for (let wx = -300; wx < W + 300; wx += 9 + Math.sin(wx * 0.17) * 3) {
+    const baseY = 475 + Math.sin(wx * 0.12) * 14;
+    const stalkH = 38 + Math.sin(wx * 0.29) * 12;
+    const sway = Math.sin(wx * 0.11 + mh.bgScrollX * 0.018) * 4;
+    // Stalk
+    ctx.strokeStyle = `hsl(${42 + Math.sin(wx * 0.07) * 6}, ${60 + Math.sin(wx * 0.1) * 10}%, ${48 + Math.sin(wx * 0.13) * 6}%)`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(wx, baseY);
+    ctx.quadraticCurveTo(wx + sway * 0.5, baseY - stalkH * 0.55, wx + sway, baseY - stalkH);
+    ctx.stroke();
+    // Wheat head (ear)
+    ctx.fillStyle = `hsl(${44 + Math.sin(wx * 0.05) * 5}, 65%, 52%)`;
+    ctx.beginPath();
+    ctx.ellipse(wx + sway, baseY - stalkH, 2.2, 5.5, 0.15, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Near trees (layer 2)
@@ -3461,77 +3458,64 @@ function drawMoorhuhnScene(overlayText = "") {
   // ── Fence (foreground parallax) ──
   ctx.save();
   ctx.translate(pxFg, 0);
-  const fenceY = 540;
-  const fenceH2 = 55;
-  const railY1 = fenceY - fenceH2 * 0.7;
-  const railY2 = fenceY - fenceH2 * 0.35;
-  ctx.strokeStyle = "#6b5239";
-  ctx.lineWidth = 4;
+  const fenceY = 542;
+  const fenceH2 = 58;
+  const railY1 = fenceY - fenceH2 * 0.72;
+  const railY2 = fenceY - fenceH2 * 0.36;
+
+  // Fence rails
+  ctx.strokeStyle = "#7a6045";
+  ctx.lineWidth = 5;
   ctx.beginPath();
-  ctx.moveTo(-200, railY1);
-  ctx.lineTo(W + 400, railY1);
+  ctx.moveTo(-200, railY1); ctx.lineTo(W + 400, railY1);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(-200, railY2);
-  ctx.lineTo(W + 400, railY2);
+  ctx.moveTo(-200, railY2); ctx.lineTo(W + 400, railY2);
   ctx.stroke();
-  ctx.strokeStyle = "rgba(160, 130, 95, 0.35)";
+  // Rail highlight
+  ctx.strokeStyle = "rgba(200, 170, 120, 0.3)";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(-200, railY1 - 1);
-  ctx.lineTo(W + 400, railY1 - 1);
+  ctx.moveTo(-200, railY1 - 2); ctx.lineTo(W + 400, railY1 - 2);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(-200, railY2 - 1);
-  ctx.lineTo(W + 400, railY2 - 1);
+  ctx.moveTo(-200, railY2 - 2); ctx.lineTo(W + 400, railY2 - 2);
   ctx.stroke();
 
   for (const post of mh.fencePosts) {
     ctx.save();
     ctx.translate(post.x, fenceY);
     ctx.rotate(post.lean);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
-    ctx.fillRect(3, -fenceH2 - 5, 7, fenceH2 + 10);
-    ctx.fillStyle = "#7a6245";
-    ctx.fillRect(-3, -fenceH2 - 5, 7, fenceH2 + 10);
-    ctx.fillStyle = "rgba(180, 155, 120, 0.4)";
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(4, -fenceH2 - 5, 7, fenceH2 + 10);
+    // Post body
+    ctx.fillStyle = "#8a6e4a";
+    ctx.fillRect(-3, -fenceH2 - 5, 8, fenceH2 + 10);
+    // Highlight
+    ctx.fillStyle = "rgba(210, 180, 135, 0.38)";
     ctx.fillRect(-2, -fenceH2 - 5, 3, fenceH2 + 10);
-    ctx.fillStyle = "#6b5239";
+    // Pointed top
+    ctx.fillStyle = "#7a6040";
     ctx.beginPath();
     ctx.moveTo(-4, -fenceH2 - 5);
-    ctx.lineTo(0.5, -fenceH2 - 14);
-    ctx.lineTo(5, -fenceH2 - 5);
+    ctx.lineTo(1, -fenceH2 - 16);
+    ctx.lineTo(6, -fenceH2 - 5);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
 
-  // Bushes along fence
-  for (let bx = -200; bx < W + 400; bx += 65 + Math.sin(bx * 0.2) * 20) {
-    const bushY = fenceY + 5;
-    const bw = 25 + Math.sin(bx * 0.5) * 10;
-    ctx.fillStyle = "#3d5a1e";
-    ctx.beginPath();
-    ctx.ellipse(bx, bushY, bw, bw * 0.55, 0, Math.PI, 0);
-    ctx.fill();
-    ctx.fillStyle = "#4a6b25";
-    ctx.beginPath();
-    ctx.ellipse(bx - 3, bushY - 2, bw * 0.6, bw * 0.35, 0, Math.PI, 0);
-    ctx.fill();
-  }
-
-  // Foreground grass blades
-  ctx.strokeStyle = "#3a5018";
-  ctx.lineWidth = 2.5;
-  for (let gx = -200; gx < W + 400; gx += 18) {
-    const gy = H - 10 + Math.sin(gx * 0.3) * 8;
+  // Dense foreground wheat/grass strip
+  for (let gx = -200; gx < W + 400; gx += 10 + Math.sin(gx * 0.2) * 3) {
+    const gy = H - 25 + Math.sin(gx * 0.18) * 12;
+    const gh = 42 + Math.sin(gx * 0.25) * 14;
+    const sway = Math.sin(gx * 0.09 + mh.bgScrollX * 0.015) * 5;
+    ctx.strokeStyle = `hsl(${100 + Math.sin(gx * 0.06) * 12}, 55%, ${24 + Math.sin(gx * 0.1) * 5}%)`;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(gx, H);
-    ctx.quadraticCurveTo(gx - 4, gy, gx - 8, gy - 15);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(gx + 6, H);
-    ctx.quadraticCurveTo(gx + 8, gy + 3, gx + 12, gy - 10);
+    ctx.quadraticCurveTo(gx + sway * 0.4, gy + 12, gx + sway, gy);
     ctx.stroke();
   }
   ctx.restore();
@@ -3544,14 +3528,12 @@ function drawMoorhuhnScene(overlayText = "") {
     ctx.rotate(p.vx * 0.3 + p.vy * 0.1);
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 7, 3, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Feather spine
-    ctx.strokeStyle = p.color;
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
     ctx.lineWidth = 0.5;
     ctx.beginPath();
-    ctx.moveTo(-5, 0);
-    ctx.lineTo(5, 0);
+    ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
     ctx.stroke();
     ctx.restore();
   }
@@ -3560,13 +3542,11 @@ function drawMoorhuhnScene(overlayText = "") {
   // ── Score popups ──
   for (const sp of mh.scorePopups) {
     ctx.globalAlpha = sp.life;
-    ctx.font = "bold 28px 'Baloo 2'";
+    ctx.font = "bold 30px 'Baloo 2'";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // Shadow
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillText(sp.text, sp.x + 2, sp.y + 2);
-    // Text
     ctx.fillStyle = sp.color;
     ctx.fillText(sp.text, sp.x, sp.y);
   }
@@ -3575,168 +3555,383 @@ function drawMoorhuhnScene(overlayText = "") {
 
   // ── Muzzle flash ──
   if (mh.muzzleFlash > 0) {
-    ctx.globalAlpha = mh.muzzleFlash * 0.5;
+    ctx.globalAlpha = mh.muzzleFlash * 0.55;
     const flashGrad = ctx.createRadialGradient(
       mh.crosshairX, mh.crosshairY, 0,
-      mh.crosshairX, mh.crosshairY, 30
+      mh.crosshairX, mh.crosshairY, 36
     );
-    flashGrad.addColorStop(0, "#ffffff");
-    flashGrad.addColorStop(0.3, "#fef08a");
-    flashGrad.addColorStop(1, "rgba(254, 240, 138, 0)");
+    flashGrad.addColorStop(0,   "#ffffff");
+    flashGrad.addColorStop(0.25,"#fff8a0");
+    flashGrad.addColorStop(1,   "rgba(255, 240, 80, 0)");
     ctx.fillStyle = flashGrad;
     ctx.beginPath();
-    ctx.arc(mh.crosshairX, mh.crosshairY, 30, 0, Math.PI * 2);
+    ctx.arc(mh.crosshairX, mh.crosshairY, 36, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 
   // ── HUD ──
   if (mh.active) {
-    // Ammo: shotgun shells at bottom-center
-    const shellW = 8;
-    const shellH = 22;
-    const shellGap = 14;
-    const shellsStartX = W / 2 - (MH_MAX_AMMO * shellGap) / 2;
+    // Timer top-left in MM:SS (like original Moorhuhn)
+    const mins = Math.floor(mh.timeLeft / 60);
+    const secs = mh.timeLeft % 60;
+    const timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    ctx.font = "bold 52px 'Baloo 2'";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillText(timeStr, 22, 56);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(timeStr, 20, 54);
+
+    // Score top-right (like original)
+    ctx.font = "bold 52px 'Baloo 2'";
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillText(`${mh.score}`, W - 18, 56);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(`${mh.score}`, W - 20, 54);
+
+    // Ammo shells at bottom-right (like original)
+    const shellW = 13;
+    const shellH = 34;
+    const shellGap = 19;
+    const shellsStartX = W - MH_MAX_AMMO * shellGap - 24;
     for (let i = 0; i < MH_MAX_AMMO; i++) {
       const sx = shellsStartX + i * shellGap;
-      const sy = H - 35;
+      const sy = H - 52;
       if (i < mh.ammo) {
-        // Full shell - brass base
-        ctx.fillStyle = "#d4a030";
-        ctx.fillRect(sx, sy + shellH - 6, shellW, 6);
-        // Shell body (red)
-        ctx.fillStyle = "#b91c1c";
+        // Brass base
+        ctx.fillStyle = "#c8941e";
+        ctx.fillRect(sx, sy + shellH - 9, shellW, 9);
+        // Rim
+        ctx.fillStyle = "#a87818";
+        ctx.fillRect(sx - 1, sy + shellH - 10, shellW + 2, 2);
+        // Red shell body
+        ctx.fillStyle = "#c01818";
         ctx.beginPath();
-        ctx.moveTo(sx, sy + shellH - 6);
-        ctx.lineTo(sx, sy + 2);
-        ctx.arc(sx + shellW / 2, sy + 2, shellW / 2, Math.PI, 0);
-        ctx.lineTo(sx + shellW, sy + shellH - 6);
+        ctx.moveTo(sx, sy + shellH - 9);
+        ctx.lineTo(sx, sy + 4);
+        ctx.arc(sx + shellW / 2, sy + 4, shellW / 2, Math.PI, 0);
+        ctx.lineTo(sx + shellW, sy + shellH - 9);
         ctx.closePath();
         ctx.fill();
-        // Highlight
-        ctx.fillStyle = "rgba(255,255,255,0.25)";
-        ctx.fillRect(sx + 1, sy + 3, 3, shellH - 10);
+        // Highlight stripe
+        ctx.fillStyle = "rgba(255,255,255,0.28)";
+        ctx.beginPath();
+        ctx.fillRect(sx + 2, sy + 6, 4, shellH - 16);
+        // Top cap
+        ctx.fillStyle = "#a01010";
+        ctx.beginPath();
+        ctx.arc(sx + shellW / 2, sy + 4, shellW / 2, Math.PI, 0);
+        ctx.fill();
       } else {
-        // Empty slot
-        ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
+        // Empty shell casing
+        ctx.fillStyle = "rgba(50, 30, 20, 0.6)";
         ctx.fillRect(sx, sy, shellW, shellH);
+        ctx.strokeStyle = "rgba(100, 70, 40, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx, sy, shellW, shellH);
       }
     }
 
-    // Timer bar at top-right
-    const barW = 180;
-    const barH = 12;
-    const barX = W - barW - 18;
-    const barY = 16;
-    // Bar bg
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, barW, barH, 6);
-    ctx.fill();
-    const pct = mh.timeLeft / MH_DURATION;
-    // Bar fill
-    const barColor = pct > 0.5 ? "#22c55e" : pct > 0.25 ? "#eab308" : "#ef4444";
-    ctx.fillStyle = barColor;
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, barW * pct, barH, 6);
-    ctx.fill();
-    // Bar highlight
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
-    ctx.beginPath();
-    ctx.roundRect(barX + 2, barY + 2, barW * pct - 4, barH / 2 - 1, 3);
-    ctx.fill();
-    // Timer text
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 14px 'Baloo 2'";
-    ctx.textAlign = "center";
-    ctx.fillText(`${mh.timeLeft}s`, barX + barW / 2, barY + barH + 16);
-
-    // Score at top-left with shadow
-    ctx.font = "bold 36px 'Baloo 2'";
-    ctx.textAlign = "left";
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.fillText(`${mh.score}`, 22, 42);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(`${mh.score}`, 20, 40);
-    ctx.font = "bold 14px 'Baloo 2'";
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.fillText("Punkte", 20, 56);
-
     // Reloading indicator
     if (mh.reloading) {
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
       ctx.beginPath();
-      ctx.roundRect(W / 2 - 70, H - 70, 140, 28, 8);
+      ctx.roundRect(W / 2 - 80, H - 75, 160, 32, 8);
       ctx.fill();
       ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 16px 'Baloo 2'";
+      ctx.font = "bold 18px 'Baloo 2'";
       ctx.textAlign = "center";
-      ctx.fillText("Nachladen...", W / 2, H - 50);
+      ctx.fillText("⟳ Nachladen...", W / 2, H - 52);
     }
   }
 
-  // ── Crosshair ──
-  if (mh.active && !mh.paused) {
+  // ── Crosshair (shown always while game open, even before start) ──
+  {
     const cx = mh.crosshairX;
     const cy = mh.crosshairY;
-    const cr = 18;
-    const gap = 6;
-    const lineLen = 14;
+    const cr = 20;
+    const gap = 5;
+    const lineLen = 12;
 
-    // Outer glow
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-    ctx.stroke();
+    if (mh.active && !mh.paused) {
+      // Shadow pass for contrast
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.moveTo(cx - cr - lineLen, cy); ctx.lineTo(cx - gap, cy);
+      ctx.moveTo(cx + gap, cy);          ctx.lineTo(cx + cr + lineLen, cy);
+      ctx.moveTo(cx, cy - cr - lineLen); ctx.lineTo(cx, cy - gap);
+      ctx.moveTo(cx, cy + gap);          ctx.lineTo(cx, cy + cr + lineLen);
+      ctx.stroke();
 
-    // Main circle
-    ctx.strokeStyle = "rgba(220, 38, 38, 0.9)";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-    ctx.stroke();
+      // Main crosshair (thin white + red circle)
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - cr - lineLen, cy); ctx.lineTo(cx - gap, cy);
+      ctx.moveTo(cx + gap, cy);          ctx.lineTo(cx + cr + lineLen, cy);
+      ctx.moveTo(cx, cy - cr - lineLen); ctx.lineTo(cx, cy - gap);
+      ctx.moveTo(cx, cy + gap);          ctx.lineTo(cx, cy + cr + lineLen);
+      ctx.stroke();
 
-    // Cross lines with gap
-    ctx.beginPath();
-    ctx.moveTo(cx - cr - lineLen, cy); ctx.lineTo(cx - gap, cy);
-    ctx.moveTo(cx + gap, cy); ctx.lineTo(cx + cr + lineLen, cy);
-    ctx.moveTo(cx, cy - cr - lineLen); ctx.lineTo(cx, cy - gap);
-    ctx.moveTo(cx, cy + gap); ctx.lineTo(cx, cy + cr + lineLen);
-    ctx.stroke();
+      // Red targeting circle
+      ctx.strokeStyle = "rgba(210, 30, 30, 0.88)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.stroke();
 
-    // Center dot
-    ctx.fillStyle = "rgba(220, 38, 38, 0.95)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+      // Center dot
+      ctx.fillStyle = "rgba(210, 30, 30, 0.95)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (!overlayText) {
+      // Idle crosshair (game not started / paused)
+      ctx.strokeStyle = "rgba(0,0,0,0.3)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   // ── Overlay text ──
   if (overlayText) {
-    ctx.fillStyle = "rgba(20, 10, 3, 0.78)";
+    ctx.fillStyle = "rgba(10, 6, 0, 0.82)";
     ctx.fillRect(0, 0, W, H);
 
-    // Title
-    ctx.font = "bold 64px 'Baloo 2'";
+    ctx.font = "bold 68px 'Baloo 2'";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillText(overlayText, W / 2 + 3, H / 2 + 3);
     ctx.fillStyle = "#fcd34d";
     ctx.fillText(overlayText, W / 2, H / 2);
 
     if (overlayText === "MOORHUHN") {
-      ctx.font = "bold 20px 'Baloo 2'";
-      ctx.fillStyle = "#d4a574";
-      ctx.fillText("Klicke Starten und schiesse die Hühner ab!", W / 2, H / 2 + 50);
+      ctx.font = "bold 22px 'Baloo 2'";
+      ctx.fillStyle = "#d4b888";
+      ctx.fillText("Klicke Starten und schiesse die Hühner ab!", W / 2, H / 2 + 58);
     } else if (overlayText === "ENDE") {
-      ctx.font = "bold 24px 'Baloo 2'";
-      ctx.fillStyle = "#d4a574";
-      ctx.fillText(`Endstand: ${mh.score} Punkte`, W / 2, H / 2 + 50);
+      ctx.font = "bold 26px 'Baloo 2'";
+      ctx.fillStyle = "#d4b888";
+      ctx.fillText(`Endstand: ${mh.score} Punkte`, W / 2, H / 2 + 58);
     }
     ctx.textBaseline = "alphabetic";
   }
+}
+
+// ─── Moorhuhn windmill ───
+function drawMhWindmill(ctx, cx, baseY, h, bladeAngle) {
+  const tw = h * 0.20; // tower width at base
+  const th = h * 0.72; // tower height
+
+  // Tower shadow
+  ctx.fillStyle = "rgba(0,0,0,0.12)";
+  ctx.beginPath();
+  ctx.moveTo(cx - tw * 0.48 + 6, baseY);
+  ctx.lineTo(cx - tw * 0.32 + 6, baseY - th);
+  ctx.lineTo(cx + tw * 0.38 + 6, baseY - th);
+  ctx.lineTo(cx + tw * 0.58 + 6, baseY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Tower (stone, slightly tapered)
+  const towerGrad = ctx.createLinearGradient(cx - tw * 0.6, 0, cx + tw * 0.6, 0);
+  towerGrad.addColorStop(0,    "#8a7a68");
+  towerGrad.addColorStop(0.32, "#b09880");
+  towerGrad.addColorStop(0.62, "#9a8870");
+  towerGrad.addColorStop(1,    "#6a5a4a");
+  ctx.fillStyle = towerGrad;
+  ctx.beginPath();
+  ctx.moveTo(cx - tw * 0.5, baseY);
+  ctx.lineTo(cx - tw * 0.32, baseY - th);
+  ctx.lineTo(cx + tw * 0.32, baseY - th);
+  ctx.lineTo(cx + tw * 0.5, baseY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Stone texture (horizontal mortar lines)
+  ctx.strokeStyle = "rgba(0,0,0,0.12)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 7; i++) {
+    const fy = baseY - th * (i / 8);
+    const fw = tw * (0.5 - i * 0.022);
+    ctx.beginPath();
+    ctx.moveTo(cx - fw, fy);
+    ctx.lineTo(cx + fw, fy);
+    ctx.stroke();
+  }
+
+  // Conical roof/cap
+  const capH = h * 0.12;
+  const roofGrad = ctx.createLinearGradient(cx - tw * 0.4, 0, cx + tw * 0.4, 0);
+  roofGrad.addColorStop(0,    "#4a3828");
+  roofGrad.addColorStop(0.5,  "#6a5038");
+  roofGrad.addColorStop(1,    "#3a2818");
+  ctx.fillStyle = roofGrad;
+  ctx.beginPath();
+  ctx.moveTo(cx - tw * 0.38, baseY - th);
+  ctx.lineTo(cx, baseY - th - capH);
+  ctx.lineTo(cx + tw * 0.38, baseY - th);
+  ctx.closePath();
+  ctx.fill();
+
+  // Blade hub
+  const hubX = cx;
+  const hubY = baseY - th - capH * 0.05;
+  ctx.fillStyle = "#6a5038";
+  ctx.beginPath();
+  ctx.arc(hubX, hubY, tw * 0.14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#4a3820";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 4 rotating blades
+  const bladeLen = h * 0.42;
+  const bladeW = tw * 0.55;
+  for (let i = 0; i < 4; i++) {
+    const a = bladeAngle + (i * Math.PI / 2);
+    ctx.save();
+    ctx.translate(hubX, hubY);
+    ctx.rotate(a);
+
+    // Blade sail (trapezoidal, like a real windmill sail)
+    const c1 = (i + bladeAngle * 0.5) % 1;
+    ctx.fillStyle = i % 2 === 0 ? "#ddd0a0" : "#cfc090";
+    ctx.beginPath();
+    ctx.moveTo(-bladeW * 0.08, 0);
+    ctx.lineTo(-bladeW * 0.4, -bladeLen);
+    ctx.lineTo(bladeW * 0.4, -bladeLen);
+    ctx.lineTo(bladeW * 0.08, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cross strut (wooden beam)
+    ctx.strokeStyle = "#7a6040";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -bladeLen);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Window (circular, dark)
+  const winY = baseY - th * 0.42;
+  ctx.fillStyle = "#2a3840";
+  ctx.beginPath();
+  ctx.arc(cx, winY, tw * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#8a7860";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = "rgba(150, 200, 220, 0.2)";
+  ctx.beginPath();
+  ctx.arc(cx - tw * 0.03, winY - tw * 0.03, tw * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Door at base
+  const doorW = tw * 0.28;
+  const doorH = th * 0.14;
+  ctx.fillStyle = "#4a3020";
+  ctx.beginPath();
+  ctx.moveTo(cx - doorW / 2, baseY);
+  ctx.lineTo(cx - doorW / 2, baseY - doorH + doorW / 2);
+  ctx.arc(cx, baseY - doorH + doorW / 2, doorW / 2, Math.PI, 0);
+  ctx.lineTo(cx + doorW / 2, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#6a5030";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+// ─── Hot air balloon ───
+function drawMhBalloon(ctx, cx, cy, r) {
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Balloon envelope with red/white vertical stripes (classic Moorhuhn balloon)
+  const segments = 8;
+  const stripeColors = ["#cc1818", "#f5f5f5"];
+  for (let i = 0; i < segments; i++) {
+    const a1 = (i / segments) * Math.PI * 2 - Math.PI / 2;
+    const a2 = ((i + 1) / segments) * Math.PI * 2 - Math.PI / 2;
+    ctx.fillStyle = stripeColors[i % 2];
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, r, a1, a2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Outline
+  ctx.strokeStyle = "rgba(0,0,0,0.22)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Bottom crown ring
+  ctx.fillStyle = "#8a6818";
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.82, r * 0.32, r * 0.11, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ropes
+  ctx.strokeStyle = "#6a5020";
+  ctx.lineWidth = 1;
+  const bkW = r * 0.46;
+  const bkY = r * 1.38;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.22, r * 0.82);
+  ctx.lineTo(-bkW / 2, bkY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(r * 0.22, r * 0.82);
+  ctx.lineTo(bkW / 2, bkY);
+  ctx.stroke();
+
+  // Basket
+  const bkGrad = ctx.createLinearGradient(-bkW / 2, bkY, bkW / 2, bkY);
+  bkGrad.addColorStop(0,   "#9a7830");
+  bkGrad.addColorStop(0.5, "#c49a40");
+  bkGrad.addColorStop(1,   "#7a5e20");
+  ctx.fillStyle = bkGrad;
+  ctx.beginPath();
+  ctx.roundRect(-bkW / 2, bkY, bkW, r * 0.26, 3);
+  ctx.fill();
+  ctx.strokeStyle = "#6a5020";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Basket weave lines
+  ctx.strokeStyle = "rgba(0,0,0,0.15)";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(0, bkY); ctx.lineTo(0, bkY + r * 0.26);
+  ctx.stroke();
+
+  // Highlight on balloon
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.28, -r * 0.3, r * 0.28, r * 0.2, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function drawChicken(ctx, c) {
@@ -3765,14 +3960,13 @@ function drawChicken(ctx, c) {
   }
 
   // Tail feathers
-  const tailColors = isBonus ? ["#fbbf24", "#f59e0b"] : ["#5c3317", "#6b3a1f", "#4a2810"];
+  const tailColors = isBonus ? ["#fbbf24", "#f59e0b"] : ["#7a5828", "#8a6838", "#604820"];
   for (let i = 0; i < 3; i++) {
-    const angle = -0.3 - i * 0.2;
-    const tl = w * 0.35;
+    const tl = w * 0.36;
     ctx.fillStyle = tailColors[i % tailColors.length];
     ctx.save();
-    ctx.translate(-w * 0.35, -h * 0.05);
-    ctx.rotate(angle + Math.sin(c.wingPhase * 0.5 + i) * 0.05);
+    ctx.translate(-w * 0.34, -h * 0.04);
+    ctx.rotate(-0.3 - i * 0.2 + Math.sin(c.wingPhase * 0.5 + i) * 0.06);
     ctx.beginPath();
     ctx.ellipse(0, 0, tl, h * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -3780,81 +3974,80 @@ function drawChicken(ctx, c) {
   }
 
   // Legs (dangling)
-  ctx.strokeStyle = isBonus ? "#d97706" : "#cc7a2e";
+  ctx.strokeStyle = isBonus ? "#d97706" : "#c4801e";
   ctx.lineWidth = Math.max(1.5, w * 0.03);
   const legDangle = Math.sin(c.wingPhase * 0.8) * 3;
-  // Left leg
   ctx.beginPath();
   ctx.moveTo(-w * 0.08, h * 0.25);
-  ctx.lineTo(-w * 0.12, h * 0.45 + legDangle);
+  ctx.lineTo(-w * 0.12, h * 0.44 + legDangle);
   ctx.lineTo(-w * 0.18, h * 0.5 + legDangle);
   ctx.stroke();
-  // Foot
   ctx.beginPath();
   ctx.moveTo(-w * 0.18, h * 0.5 + legDangle);
-  ctx.lineTo(-w * 0.22, h * 0.52 + legDangle);
+  ctx.lineTo(-w * 0.23, h * 0.52 + legDangle);
   ctx.moveTo(-w * 0.18, h * 0.5 + legDangle);
-  ctx.lineTo(-w * 0.14, h * 0.52 + legDangle);
+  ctx.lineTo(-w * 0.13, h * 0.52 + legDangle);
   ctx.stroke();
-  // Right leg
   ctx.beginPath();
   ctx.moveTo(w * 0.05, h * 0.25);
-  ctx.lineTo(w * 0.02, h * 0.45 + legDangle * 0.8);
+  ctx.lineTo(w * 0.02, h * 0.44 + legDangle * 0.8);
   ctx.lineTo(-w * 0.04, h * 0.5 + legDangle * 0.8);
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(-w * 0.04, h * 0.5 + legDangle * 0.8);
-  ctx.lineTo(-w * 0.08, h * 0.52 + legDangle * 0.8);
+  ctx.lineTo(-w * 0.09, h * 0.52 + legDangle * 0.8);
   ctx.moveTo(-w * 0.04, h * 0.5 + legDangle * 0.8);
   ctx.lineTo(0, h * 0.52 + legDangle * 0.8);
   ctx.stroke();
 
-  // Body
-  const bodyColor = isBonus ? "#fbbf24" : "#7a4a1e";
-  const bellyColor = isBonus ? "#fde68a" : "#c49a5c";
-  // Body shadow
-  ctx.fillStyle = isBonus ? "#d97706" : "#5c3317";
+  // Body — tan/beige like original Moorhuhn (lighter than before)
+  const bodyColor  = isBonus ? "#fbbf24" : "#c8904a";
+  const bellyColor = isBonus ? "#fde68a" : "#e8d0a8";
+  const bodyDark   = isBonus ? "#d97706" : "#9a6830";
+
+  // Body shadow/depth
+  ctx.fillStyle = bodyDark;
   ctx.beginPath();
-  ctx.ellipse(1, 2, w * 0.38, h * 0.32, 0.05, 0, Math.PI * 2);
+  ctx.ellipse(2, 2, w * 0.38, h * 0.32, 0.05, 0, Math.PI * 2);
   ctx.fill();
   // Main body
   ctx.fillStyle = bodyColor;
   ctx.beginPath();
   ctx.ellipse(0, 0, w * 0.36, h * 0.30, 0.05, 0, Math.PI * 2);
   ctx.fill();
-  // Belly highlight
+  // Light belly
   ctx.fillStyle = bellyColor;
   ctx.beginPath();
-  ctx.ellipse(w * 0.02, h * 0.06, w * 0.22, h * 0.18, 0.1, 0, Math.PI * 2);
+  ctx.ellipse(w * 0.03, h * 0.07, w * 0.22, h * 0.19, 0.1, 0, Math.PI * 2);
   ctx.fill();
-  // Body specular
-  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  // Specular highlight
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
   ctx.beginPath();
-  ctx.ellipse(-w * 0.08, -h * 0.12, w * 0.15, h * 0.1, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(-w * 0.08, -h * 0.12, w * 0.14, h * 0.09, -0.3, 0, Math.PI * 2);
   ctx.fill();
 
   // Wing (animated flapping)
-  const wingAngle = Math.sin(c.wingPhase) * 0.6;
-  const wingColor = isBonus ? "#f59e0b" : "#6b3a1f";
-  const wingTip = isBonus ? "#d97706" : "#4a2810";
+  const wingAngle = Math.sin(c.wingPhase) * 0.62;
+  const wingColor = isBonus ? "#f59e0b" : "#a07038";
+  const wingTip   = isBonus ? "#d97706" : "#7a5020";
   ctx.save();
-  ctx.translate(-w * 0.05, -h * 0.05);
+  ctx.translate(-w * 0.05, -h * 0.06);
   ctx.rotate(wingAngle);
   // Wing shadow
   ctx.fillStyle = wingTip;
   ctx.beginPath();
-  ctx.ellipse(0, -h * 0.18, w * 0.3, h * 0.14, -0.2, 0, Math.PI * 2);
+  ctx.ellipse(0, -h * 0.18, w * 0.31, h * 0.14, -0.2, 0, Math.PI * 2);
   ctx.fill();
-  // Wing body
+  // Wing main
   ctx.fillStyle = wingColor;
   ctx.beginPath();
-  ctx.ellipse(0, -h * 0.2, w * 0.28, h * 0.12, -0.2, 0, Math.PI * 2);
+  ctx.ellipse(0, -h * 0.20, w * 0.29, h * 0.12, -0.2, 0, Math.PI * 2);
   ctx.fill();
-  // Wing feather detail lines
-  ctx.strokeStyle = "rgba(0,0,0,0.15)";
+  // Wing feather lines
+  ctx.strokeStyle = "rgba(0,0,0,0.12)";
   ctx.lineWidth = 0.8;
   for (let f = 0; f < 3; f++) {
-    const fx = -w * 0.15 + f * w * 0.12;
+    const fx = -w * 0.14 + f * w * 0.12;
     ctx.beginPath();
     ctx.moveTo(fx, -h * 0.12);
     ctx.lineTo(fx - w * 0.05, -h * 0.28);
@@ -3865,83 +4058,89 @@ function drawChicken(ctx, c) {
   // Neck
   ctx.fillStyle = bodyColor;
   ctx.beginPath();
-  ctx.ellipse(w * 0.25, -h * 0.18, w * 0.1, h * 0.14, 0.2, 0, Math.PI * 2);
+  ctx.ellipse(w * 0.25, -h * 0.18, w * 0.10, h * 0.14, 0.2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Head
-  const headR = h * 0.18;
+  // Head — lighter tan/brown like original
+  const headR = h * 0.19;
   const headX = w * 0.32;
-  const headY = -h * 0.3;
-  ctx.fillStyle = isBonus ? "#fbbf24" : "#8b5e34";
+  const headY = -h * 0.31;
+  const headColor = isBonus ? "#fbbf24" : "#c89050";
+  ctx.fillStyle = isBonus ? "#d97706" : "#9a6830";
+  ctx.beginPath();
+  ctx.arc(headX + 1.5, headY + 1.5, headR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = headColor;
   ctx.beginPath();
   ctx.arc(headX, headY, headR, 0, Math.PI * 2);
   ctx.fill();
-  // Head highlight
-  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
   ctx.beginPath();
-  ctx.arc(headX - headR * 0.2, headY - headR * 0.3, headR * 0.5, 0, Math.PI * 2);
+  ctx.arc(headX - headR * 0.2, headY - headR * 0.3, headR * 0.52, 0, Math.PI * 2);
   ctx.fill();
 
-  // Comb (red floppy comb on top)
-  ctx.fillStyle = "#dc2626";
+  // Comb (red, floppy, 3 lobes)
+  ctx.fillStyle = "#e02020";
   ctx.beginPath();
-  ctx.arc(headX - headR * 0.2, headY - headR * 0.8, headR * 0.3, 0, Math.PI * 2);
+  ctx.arc(headX - headR * 0.15, headY - headR * 0.82, headR * 0.32, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(headX + headR * 0.1, headY - headR * 0.9, headR * 0.25, 0, Math.PI * 2);
+  ctx.arc(headX + headR * 0.12, headY - headR * 0.92, headR * 0.26, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(headX - headR * 0.05, headY - headR * 0.7, headR * 0.28, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Wattle (red under beak)
-  ctx.fillStyle = "#dc2626";
-  ctx.beginPath();
-  ctx.ellipse(headX + headR * 0.5, headY + headR * 0.5, headR * 0.15, headR * 0.3, 0.2, 0, Math.PI * 2);
+  ctx.arc(headX - headR * 0.38, headY - headR * 0.7, headR * 0.24, 0, Math.PI * 2);
   ctx.fill();
 
-  // Eye (with expression)
-  const eyeX = headX + headR * 0.3;
-  const eyeY = headY - headR * 0.15;
-  const eyeR = headR * 0.35;
-  // Eye white
-  ctx.fillStyle = "white";
+  // Wattle
+  ctx.fillStyle = "#e02020";
   ctx.beginPath();
-  ctx.ellipse(eyeX, eyeY, eyeR, eyeR * 0.9, 0, 0, Math.PI * 2);
+  ctx.ellipse(headX + headR * 0.52, headY + headR * 0.52, headR * 0.15, headR * 0.28, 0.2, 0, Math.PI * 2);
   ctx.fill();
-  // Iris
-  ctx.fillStyle = isBonus ? "#92400e" : "#1a1a1a";
+
+  // Eye (big, expressive — characteristic Moorhuhn look)
+  const eyeX = headX + headR * 0.28;
+  const eyeY = headY - headR * 0.14;
+  const eyeR = headR * 0.38;
+  // Large white sclera
+  ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(eyeX + eyeR * 0.15, eyeY, eyeR * 0.5, 0, Math.PI * 2);
+  ctx.ellipse(eyeX, eyeY, eyeR * 1.05, eyeR, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Brown/dark iris
+  ctx.fillStyle = isBonus ? "#92400e" : "#2a1a0a";
+  ctx.beginPath();
+  ctx.arc(eyeX + eyeR * 0.15, eyeY, eyeR * 0.55, 0, Math.PI * 2);
   ctx.fill();
   // Pupil
   ctx.fillStyle = "#000000";
   ctx.beginPath();
-  ctx.arc(eyeX + eyeR * 0.2, eyeY, eyeR * 0.25, 0, Math.PI * 2);
+  ctx.arc(eyeX + eyeR * 0.2, eyeY, eyeR * 0.28, 0, Math.PI * 2);
   ctx.fill();
-  // Eye shine
-  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  // Eye shine (large highlight for cartoon look)
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.beginPath();
-  ctx.arc(eyeX + eyeR * 0.05, eyeY - eyeR * 0.2, eyeR * 0.15, 0, Math.PI * 2);
+  ctx.arc(eyeX + eyeR * 0.05, eyeY - eyeR * 0.22, eyeR * 0.18, 0, Math.PI * 2);
   ctx.fill();
-  // Eyelid (slightly angry expression)
-  ctx.strokeStyle = isBonus ? "#92400e" : "#5c3317";
-  ctx.lineWidth = Math.max(1, headR * 0.1);
+  ctx.beginPath();
+  ctx.arc(eyeX + eyeR * 0.28, eyeY + eyeR * 0.08, eyeR * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+  // Eyelid frown line
+  ctx.strokeStyle = isBonus ? "#92400e" : "#6a3818";
+  ctx.lineWidth = Math.max(1, headR * 0.11);
   ctx.beginPath();
   ctx.arc(eyeX, eyeY, eyeR, -Math.PI * 0.8, -Math.PI * 0.2);
   ctx.stroke();
 
-  // Beak
-  const beakLen = headR * 1.0;
-  ctx.fillStyle = "#e8940a";
+  // Beak (orange, prominent)
+  const beakLen = headR * 1.05;
+  ctx.fillStyle = "#e8920a";
   ctx.beginPath();
   ctx.moveTo(headX + headR * 0.7, headY - headR * 0.1);
-  ctx.lineTo(headX + headR * 0.7 + beakLen, headY + headR * 0.05);
-  ctx.lineTo(headX + headR * 0.7, headY + headR * 0.25);
+  ctx.lineTo(headX + headR * 0.7 + beakLen, headY + headR * 0.08);
+  ctx.lineTo(headX + headR * 0.7, headY + headR * 0.26);
   ctx.closePath();
   ctx.fill();
-  // Beak lower
-  ctx.fillStyle = "#cc7a05";
+  ctx.fillStyle = "#c87208";
   ctx.beginPath();
   ctx.moveTo(headX + headR * 0.7, headY + headR * 0.1);
   ctx.lineTo(headX + headR * 0.7 + beakLen * 0.8, headY + headR * 0.15);
