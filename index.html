@@ -294,56 +294,34 @@
     </div>
 
     <!-- Moorhuhn Modal -->
-    <div class="tetris-modal-backdrop hidden moorhuhn-theme" id="moorhuhnModalBackdrop">
-      <div class="tetris-modal moorhuhn-modal-wide" id="moorhuhnModal">
-        <div class="tetris-modal-header">
-          <h2 class="tetris-modal-title moorhuhn-title">🐔 Moorhuhn</h2>
-          <div class="tetris-modal-badges">
-            <span class="tetris-badge coin-inline" id="moorhuhnCoins">Münzen: 0</span>
-            <span class="tetris-badge ticket-inline">Spiele: <strong id="moorhuhnPlaysModal">0</strong></span>
-          </div>
-          <button class="tetris-close-btn" id="closeMoorhuhnBtn" aria-label="Schliessen">&times;</button>
+    <div class="mh-fullscreen hidden" id="moorhuhnModalBackdrop">
+      <div class="mh-topbar">
+        <h2 class="mh-topbar-title">🐔 Moorhuhn</h2>
+        <span class="mh-topbar-badge coin-inline" id="moorhuhnCoins">Münzen: 0</span>
+        <span class="mh-topbar-badge ticket-inline">Spiele: <strong id="moorhuhnPlaysModal">0</strong></span>
+        <div class="mh-topbar-stats">
+          <span class="mh-stat">Punkte: <strong id="moorhuhnScore">0</strong></span>
+          <span class="mh-stat">Zeit: <strong id="moorhuhnTime">60</strong></span>
+          <span class="mh-stat">Schuss: <strong id="moorhuhnAmmo">8</strong></span>
+          <span class="mh-stat">Rekord: <strong id="moorhuhnHighscore">0</strong></span>
         </div>
-        <div class="tetris-modal-body">
-          <div class="tetris-stage moorhuhn-stage">
-            <div class="tetris-stats-col">
-              <div class="tetris-stat-box">
-                <span class="tetris-stat-label">Punkte</span>
-                <span class="tetris-stat-value" id="moorhuhnScore">0</span>
-              </div>
-              <div class="tetris-stat-box">
-                <span class="tetris-stat-label">Zeit</span>
-                <span class="tetris-stat-value" id="moorhuhnTime">60</span>
-              </div>
-              <div class="tetris-stat-box">
-                <span class="tetris-stat-label">Schuss</span>
-                <span class="tetris-stat-value" id="moorhuhnAmmo">8</span>
-              </div>
-              <div class="tetris-stat-box">
-                <span class="tetris-stat-label">Rekord</span>
-                <span class="tetris-stat-value" id="moorhuhnHighscore">0</span>
-              </div>
-            </div>
-            <div class="tetris-canvas-wrapper">
-              <canvas
-                id="moorhuhnCanvas"
-                class="tetris-canvas moorhuhn-canvas"
-                width="480"
-                height="320"
-                aria-label="Moorhuhn Spielfeld"
-              ></canvas>
-              <div class="tetris-glow"></div>
-            </div>
-          </div>
-          <div class="tetris-controls">
-            <button id="startMoorhuhnBtn" class="btn tetris-btn-start">Moorhuhn starten</button>
-            <button id="pauseMoorhuhnBtn" class="btn tetris-btn-pause">Pause</button>
-            <button id="reloadMoorhuhnBtn" class="btn moorhuhn-reload-btn">Nachladen (R)</button>
-          </div>
-          <p class="tetris-hint tetris-hint-keyboard">Klicken = Schiessen &middot; R = Nachladen &middot; Leertaste = Pause</p>
-          <p id="moorhuhnModalFeedback" class="feedback tetris-feedback"></p>
+        <div class="mh-topbar-actions">
+          <button id="startMoorhuhnBtn" class="btn mh-btn-start">Starten</button>
+          <button id="pauseMoorhuhnBtn" class="btn mh-btn-pause">Pause</button>
+          <button id="reloadMoorhuhnBtn" class="btn mh-btn-reload">Nachladen (R)</button>
+          <button class="btn mh-btn-close" id="closeMoorhuhnBtn" aria-label="Schliessen">&times; Schliessen</button>
         </div>
       </div>
+      <div class="mh-canvas-area">
+        <canvas
+          id="moorhuhnCanvas"
+          class="mh-canvas"
+          width="960"
+          height="640"
+          aria-label="Moorhuhn Spielfeld"
+        ></canvas>
+      </div>
+      <p id="moorhuhnModalFeedback" class="feedback mh-feedback"></p>
     </div>
 
     <script src="app.js"></script>

@@ -23,15 +23,15 @@ const SNAKE_HIGHSCORE_KEY = "word_galaxy_snake_highscore";
 const MOORHUHN_PLAYS_STORAGE_KEY = "word_galaxy_moorhuhn_plays";
 const MOORHUHN_HIGHSCORE_KEY = "word_galaxy_moorhuhn_highscore";
 const MOORHUHN_PLAY_BUNDLE_COST = 20;
-const MH_W = 480;
-const MH_H = 320;
+const MH_W = 960;
+const MH_H = 640;
 const MH_DURATION = 60;
 const MH_MAX_AMMO = 8;
 const MH_CHICKEN_TYPES = [
-  { name: "far",    speed: 0.8, points: 50,  w: 22, h: 16 },
-  { name: "med",    speed: 1.4, points: 25,  w: 32, h: 24 },
-  { name: "close",  speed: 2.2, points: 10,  w: 46, h: 34 },
-  { name: "bonus",  speed: 3.0, points: 100, w: 28, h: 20 },
+  { name: "far",    speed: 1.2, points: 50,  w: 36, h: 28 },
+  { name: "med",    speed: 2.0, points: 25,  w: 56, h: 42 },
+  { name: "close",  speed: 3.2, points: 10,  w: 80, h: 60 },
+  { name: "bonus",  speed: 4.0, points: 100, w: 44, h: 34 },
 ];
 
 // Moorhuhn 8-bit hunting theme melody [frequency, eighthNotes]
@@ -236,6 +236,10 @@ const state = {
     crosshairX: MH_W / 2,
     crosshairY: MH_H / 2,
     muzzleFlash: 0,
+    trees: [],
+    fencePosts: [],
+    viewX: 0,         // parallax offset based on mouse position (-1 to +1)
+    sceneWidth: 1200,  // virtual scene width (wider than canvas for scrolling)
   },
 };
 
@@ -2842,16 +2846,64 @@ function initMoorhuhnRound() {
   mh.crosshairX = MH_W / 2;
   mh.crosshairY = MH_H / 2;
   mh.muzzleFlash = 0;
+  mh.viewX = 0;
 
-  // Spawn initial clouds
+  const SW = mh.sceneWidth; // virtual scene width for parallax elements
+
+  // Clouds
   mh.clouds = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 9; i++) {
     mh.clouds.push({
-      x: Math.random() * MH_W,
-      y: 15 + Math.random() * 60,
-      w: 40 + Math.random() * 60,
-      speed: 0.15 + Math.random() * 0.2,
+      x: Math.random() * SW,
+      y: 20 + Math.random() * 100,
+      w: 80 + Math.random() * 120,
+      speed: 0.1 + Math.random() * 0.25,
     });
+  }
+
+  // Generate bare autumn trees at various depths
+  mh.trees = [];
+  // Far trees (small, dark)
+  for (let i = 0; i < 7; i++) {
+    mh.trees.push({
+      x: 60 + i * (SW / 7) + (Math.random() - 0.5) * 100,
+      groundY: 300 + Math.random() * 20,
+      h: 50 + Math.random() * 30,
+      trunk: 3 + Math.random() * 2,
+      layer: 0,
+      branches: Math.floor(3 + Math.random() * 3),
+      seed: Math.random() * 1000,
+    });
+  }
+  // Mid trees
+  for (let i = 0; i < 6; i++) {
+    mh.trees.push({
+      x: 40 + i * (SW / 6) + (Math.random() - 0.5) * 140,
+      groundY: 400 + Math.random() * 30,
+      h: 80 + Math.random() * 50,
+      trunk: 5 + Math.random() * 3,
+      layer: 1,
+      branches: Math.floor(4 + Math.random() * 4),
+      seed: Math.random() * 1000,
+    });
+  }
+  // Near/foreground trees (large, detailed)
+  for (let i = 0; i < 4; i++) {
+    mh.trees.push({
+      x: 80 + i * (SW / 4) + (Math.random() - 0.5) * 160,
+      groundY: 520 + Math.random() * 20,
+      h: 140 + Math.random() * 60,
+      trunk: 8 + Math.random() * 5,
+      layer: 2,
+      branches: Math.floor(5 + Math.random() * 5),
+      seed: Math.random() * 1000,
+    });
+  }
+
+  // Fence posts across the scene
+  mh.fencePosts = [];
+  for (let fx = 20; fx < SW; fx += 55 + Math.random() * 15) {
+    mh.fencePosts.push({ x: fx, lean: (Math.random() - 0.5) * 0.08 });
   }
 
   // Spawn a few initial chickens
@@ -2874,9 +2926,10 @@ function spawnChicken() {
 
   const type = MH_CHICKEN_TYPES[typeIdx];
   const fromLeft = Math.random() < 0.5;
-  const x = fromLeft ? -type.w : MH_W + type.w;
-  const yMin = typeIdx === 0 ? 30 : typeIdx === 1 ? 60 : 120;
-  const yMax = typeIdx === 0 ? 100 : typeIdx === 1 ? 180 : 260;
+  const margin = 200; // extra margin for parallax
+  const x = fromLeft ? -type.w - margin : MH_W + type.w + margin;
+  const yMin = typeIdx === 0 ? 50 : typeIdx === 1 ? 120 : 250;
+  const yMax = typeIdx === 0 ? 180 : typeIdx === 1 ? 340 : 480;
   const y = yMin + Math.random() * (yMax - yMin);
   const vx = (fromLeft ? 1 : -1) * (type.speed + Math.random() * 0.5);
 
@@ -2914,11 +2967,11 @@ function runMoorhuhnFrame(ts) {
   for (let i = mh.chickens.length - 1; i >= 0; i--) {
     const c = mh.chickens[i];
     if (c.hit) {
-      c.hitVy += 0.3; // gravity
+      c.hitVy += 0.5; // gravity
       c.y += c.hitVy;
       c.hitRot += c.hitRotSpeed;
-      c.alpha -= 0.008;
-      if (c.y > MH_H + 50 || c.alpha <= 0) {
+      c.alpha -= 0.012;
+      if (c.y > MH_H + 80 || c.alpha <= 0) {
         mh.chickens.splice(i, 1);
       }
       continue;
@@ -2929,13 +2982,13 @@ function runMoorhuhnFrame(ts) {
     c.wingPhase += 0.2;
 
     if (c.pattern === "wavy") {
-      c.y = c.baseY + Math.sin(c.phase) * 20;
+      c.y = c.baseY + Math.sin(c.phase) * 35;
     } else if (c.pattern === "diving") {
-      c.y = c.baseY + Math.sin(c.phase * 0.7) * 35;
+      c.y = c.baseY + Math.sin(c.phase * 0.7) * 60;
     }
 
-    // Remove off-screen chickens
-    if ((c.vx > 0 && c.x > MH_W + c.w + 10) || (c.vx < 0 && c.x < -c.w - 10)) {
+    // Remove off-screen chickens (account for parallax margin)
+    if ((c.vx > 0 && c.x > MH_W + c.w + 200) || (c.vx < 0 && c.x < -c.w - 200)) {
       mh.chickens.splice(i, 1);
     }
   }
@@ -2945,8 +2998,8 @@ function runMoorhuhnFrame(ts) {
     const p = mh.particles[i];
     p.x += p.vx;
     p.y += p.vy;
-    p.vy += 0.1; // gravity on feathers
-    p.life -= 0.03;
+    p.vy += 0.15; // gravity on feathers
+    p.life -= 0.02;
     if (p.life <= 0) {
       mh.particles.splice(i, 1);
     }
@@ -2955,8 +3008,8 @@ function runMoorhuhnFrame(ts) {
   // Update score popups
   for (let i = mh.scorePopups.length - 1; i >= 0; i--) {
     const sp = mh.scorePopups[i];
-    sp.y -= 0.8;
-    sp.life -= 0.02;
+    sp.y -= 1.2;
+    sp.life -= 0.015;
     if (sp.life <= 0) {
       mh.scorePopups.splice(i, 1);
     }
@@ -2965,7 +3018,7 @@ function runMoorhuhnFrame(ts) {
   // Update clouds
   for (const cloud of mh.clouds) {
     cloud.x += cloud.speed;
-    if (cloud.x > MH_W + cloud.w) {
+    if (cloud.x > mh.sceneWidth + cloud.w) {
       cloud.x = -cloud.w;
     }
   }
@@ -3001,18 +3054,22 @@ function handleMoorhuhnShoot(canvasX, canvasY) {
 
   // Hit detection - check from front (close) to back (far) for proper layering
   let hitChicken = null;
-  // Sort by typeIdx descending (close=2 first, then med=1, then far=0) for priority
   const sortedChickens = [...mh.chickens].filter(c => !c.hit);
   sortedChickens.sort((a, b) => b.typeIdx - a.typeIdx);
 
+  // Parallax offsets per layer (must match drawing offsets)
+  const vxNow = mh.viewX;
+  const pxMap = { 0: -vxNow * 50, 3: -vxNow * 80, 1: -vxNow * 80, 2: -vxNow * 120 };
+
   for (const c of sortedChickens) {
-    const cx = c.x;
-    const cy = c.y;
+    const px = pxMap[c.typeIdx] || 0;
+    const screenX = c.x + px;
+    const screenY = c.y;
     if (
-      canvasX >= cx - c.w / 2 &&
-      canvasX <= cx + c.w / 2 &&
-      canvasY >= cy - c.h / 2 &&
-      canvasY <= cy + c.h / 2
+      canvasX >= screenX - c.w / 2 &&
+      canvasX <= screenX + c.w / 2 &&
+      canvasY >= screenY - c.h / 2 &&
+      canvasY <= screenY + c.h / 2
     ) {
       hitChicken = c;
       break;
@@ -3021,28 +3078,36 @@ function handleMoorhuhnShoot(canvasX, canvasY) {
 
   if (hitChicken) {
     hitChicken.hit = true;
-    hitChicken.hitVy = -2;
+    hitChicken.hitVy = -3;
     hitChicken.hitRotSpeed = (Math.random() - 0.5) * 0.3;
     mh.score += hitChicken.points;
     updateMoorhuhnStats();
 
+    // Use screen position for particles/popups
+    const px = pxMap[hitChicken.typeIdx] || 0;
+    const screenHitX = hitChicken.x + px;
+    const screenHitY = hitChicken.y;
+
     // Spawn feather particles
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2;
+    const featherColors = hitChicken.typeIdx === 3
+      ? ["#fbbf24", "#f59e0b", "#fde68a"]
+      : ["#8B4513", "#6b3a1f", "#c49a5c", "#5c3317"];
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
       mh.particles.push({
-        x: hitChicken.x,
-        y: hitChicken.y,
-        vx: Math.cos(angle) * (1.5 + Math.random() * 2),
-        vy: Math.sin(angle) * (1.5 + Math.random() * 2) - 1,
+        x: screenHitX,
+        y: screenHitY,
+        vx: Math.cos(angle) * (2 + Math.random() * 3),
+        vy: Math.sin(angle) * (2 + Math.random() * 3) - 1.5,
         life: 1,
-        color: hitChicken.typeIdx === 3 ? "#fbbf24" : "#8B4513",
+        color: featherColors[Math.floor(Math.random() * featherColors.length)],
       });
     }
 
     // Score popup
     mh.scorePopups.push({
-      x: hitChicken.x,
-      y: hitChicken.y - 10,
+      x: screenHitX,
+      y: screenHitY - 20,
       text: `+${hitChicken.points}`,
       life: 1,
       color: hitChicken.typeIdx === 3 ? "#fbbf24" : "#ffffff",
@@ -3115,187 +3180,561 @@ function toggleMoorhuhnPause() {
 
 // ─── Moorhuhn rendering ───
 
+function drawMhBareTree(ctx, tree) {
+  const { x, groundY, h, trunk, branches, seed } = tree;
+  ctx.save();
+  ctx.translate(x, groundY);
+
+  // Trunk
+  const trunkColor = tree.layer === 0 ? "#3d2b1f" : tree.layer === 1 ? "#4a3728" : "#5c4033";
+  ctx.strokeStyle = trunkColor;
+  ctx.lineCap = "round";
+  ctx.lineWidth = trunk;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -h);
+  ctx.stroke();
+
+  // Branches - recursive-like using seed for determinism
+  function drawBranch(bx, by, len, angle, width, depth) {
+    if (depth <= 0 || len < 3) return;
+    const endX = bx + Math.cos(angle) * len;
+    const endY = by + Math.sin(angle) * len;
+    ctx.lineWidth = width;
+    ctx.strokeStyle = trunkColor;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    // Sub-branches
+    const spread = 0.4 + (seed % 7) * 0.05;
+    drawBranch(endX, endY, len * 0.65, angle - spread, width * 0.65, depth - 1);
+    drawBranch(endX, endY, len * 0.55, angle + spread * 0.8, width * 0.6, depth - 1);
+    if (depth > 2) {
+      drawBranch(endX, endY, len * 0.4, angle + 0.1, width * 0.5, depth - 2);
+    }
+  }
+
+  // Main branches from trunk
+  const branchLen = h * 0.45;
+  const branchW = trunk * 0.7;
+  const depthLim = tree.layer === 0 ? 2 : tree.layer === 1 ? 3 : 4;
+  for (let i = 0; i < branches; i++) {
+    const t = (i + 0.3) / branches;
+    const by = -h * (0.35 + t * 0.6);
+    const side = i % 2 === 0 ? -1 : 1;
+    const baseAngle = -Math.PI / 2 + side * (0.5 + (seed * (i + 1) % 5) * 0.1);
+    drawBranch(0, by, branchLen * (0.4 + t * 0.6), baseAngle, branchW * (1 - t * 0.3), depthLim);
+  }
+
+  // A few remaining autumn leaves on near trees
+  if (tree.layer >= 1) {
+    const leafColors = ["#c0392b", "#e67e22", "#d4ac0d", "#cb4335", "#f39c12"];
+    for (let i = 0; i < (tree.layer === 2 ? 12 : 5); i++) {
+      const lx = (((seed * 7 + i * 31) % 100) / 100 - 0.5) * h * 0.8;
+      const ly = -(h * 0.3 + ((seed * 13 + i * 47) % 100) / 100 * h * 0.6);
+      const lr = trunk * (0.4 + ((seed * 3 + i * 17) % 10) / 20);
+      ctx.fillStyle = leafColors[i % leafColors.length];
+      ctx.beginPath();
+      ctx.ellipse(lx, ly, lr * 1.2, lr, ((seed + i) % 6) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawMhCloud(ctx, cloud) {
+  const { x, y, w } = cloud;
+  const rh = w / 4;
+  // Main body
+  ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+  ctx.beginPath();
+  ctx.ellipse(x, y, w / 2, rh, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Puffs
+  ctx.beginPath();
+  ctx.ellipse(x - w * 0.25, y - rh * 0.4, w * 0.3, rh * 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.22, y - rh * 0.2, w * 0.28, rh * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x - w * 0.1, y - rh * 0.6, w * 0.22, rh * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Bright highlight
+  ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.beginPath();
+  ctx.ellipse(x - w * 0.15, y - rh * 0.5, w * 0.15, rh * 0.35, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawMhHillCurve(ctx, W, H, baseY, color, points) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(-10, H + 10);
+  ctx.lineTo(-10, baseY + points[0]);
+  for (let i = 1; i < points.length; i++) {
+    const px = (i / (points.length - 1)) * (W + 20) - 10;
+    const prevX = ((i - 1) / (points.length - 1)) * (W + 20) - 10;
+    const cpx = (prevX + px) / 2;
+    ctx.quadraticCurveTo(cpx, baseY + points[i - 1] - 10, px, baseY + points[i]);
+  }
+  ctx.lineTo(W + 10, H + 10);
+  ctx.closePath();
+  ctx.fill();
+}
+
 function drawMoorhuhnScene(overlayText = "") {
   const canvas = els.moorhuhnCanvas;
   const ctx = mhCtx;
   const W = canvas.width;
   const H = canvas.height;
   const mh = state.moorhuhn;
+  const vx = mh.viewX; // -1 to +1
 
-  // Sky gradient
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-  skyGrad.addColorStop(0, "#7dd3fc");
-  skyGrad.addColorStop(0.5, "#bae6fd");
-  skyGrad.addColorStop(1, "#fef9c3");
+  // Parallax offset per layer depth (far layers move less)
+  const pxSky = -vx * 15;
+  const pxDistant = -vx * 30;
+  const pxFar = -vx * 50;
+  const pxMid = -vx * 80;
+  const pxNear = -vx * 120;
+  const pxFg = -vx * 160;
+
+  // ── Sky: autumn sunset gradient ──
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+  skyGrad.addColorStop(0, "#4a90c4");
+  skyGrad.addColorStop(0.25, "#7bbad4");
+  skyGrad.addColorStop(0.5, "#c9dba8");
+  skyGrad.addColorStop(0.75, "#f0d48a");
+  skyGrad.addColorStop(1, "#e8a64c");
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Clouds
+  // Sun glow (moves very slightly with parallax)
+  const sunX = W * 0.8 + pxSky;
+  const sunY = 90;
+  const sunGrad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 160);
+  sunGrad.addColorStop(0, "rgba(255, 240, 180, 0.9)");
+  sunGrad.addColorStop(0.3, "rgba(255, 220, 120, 0.4)");
+  sunGrad.addColorStop(1, "rgba(255, 200, 80, 0)");
+  ctx.fillStyle = sunGrad;
+  ctx.fillRect(0, 0, W, H * 0.6);
+
+  // Sun disc
+  ctx.fillStyle = "#fff4c2";
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 28, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 250, 220, 0.5)";
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 40, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Clouds (parallax: between sky and distant) ──
   for (const cloud of mh.clouds) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.beginPath();
-    ctx.ellipse(cloud.x, cloud.y, cloud.w / 2, cloud.w / 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(cloud.x - cloud.w * 0.2, cloud.y - 5, cloud.w / 3, cloud.w / 5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(cloud.x + cloud.w * 0.2, cloud.y + 2, cloud.w / 3, cloud.w / 5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    drawMhCloud(ctx, { ...cloud, x: cloud.x + pxDistant * 0.5 });
   }
 
-  // Mountains - far layer (dark)
-  ctx.fillStyle = "#4a6741";
-  ctx.beginPath();
-  ctx.moveTo(0, H);
-  ctx.bezierCurveTo(60, 140, 140, 100, 200, 150);
-  ctx.bezierCurveTo(260, 110, 320, 90, 380, 130);
-  ctx.bezierCurveTo(420, 100, 460, 120, W, 140);
-  ctx.lineTo(W, H);
-  ctx.fill();
+  // ── Distant mountains (bluish-purple haze) ──
+  ctx.save();
+  ctx.translate(pxDistant, 0);
+  drawMhHillCurve(ctx, W + 80, H, 200, "#6b7fa3",
+    [40, 10, -30, -50, -20, 15, -40, -65, -35, 0, 25, 5, -20]);
+  drawMhHillCurve(ctx, W + 80, H, 220, "#7a8c6e",
+    [20, -5, -25, -10, 15, -15, -30, -10, 10, -20, 0, 15, -5]);
+  ctx.restore();
 
-  // Mountains - mid layer
-  ctx.fillStyle = "#5c8a50";
-  ctx.beginPath();
-  ctx.moveTo(0, H);
-  ctx.bezierCurveTo(40, 180, 100, 150, 160, 190);
-  ctx.bezierCurveTo(220, 155, 280, 140, 340, 175);
-  ctx.bezierCurveTo(400, 150, 440, 160, W, 180);
-  ctx.lineTo(W, H);
-  ctx.fill();
+  // ── Far hills (dark autumn green/brown) ──
+  ctx.save();
+  ctx.translate(pxFar, 0);
+  drawMhHillCurve(ctx, W + 120, H, 280, "#5a6e3a",
+    [30, 5, -20, -40, -15, 10, -30, -50, -25, 5, 20, -10, 0]);
 
-  // Mountains - near layer (lighter)
-  ctx.fillStyle = "#6da85e";
-  ctx.beginPath();
-  ctx.moveTo(0, H);
-  ctx.bezierCurveTo(50, 220, 120, 200, 180, 230);
-  ctx.bezierCurveTo(250, 210, 340, 190, 400, 220);
-  ctx.bezierCurveTo(440, 205, 470, 215, W, 210);
-  ctx.lineTo(W, H);
-  ctx.fill();
-
-  // Ground
-  ctx.fillStyle = "#4a7c3f";
-  ctx.fillRect(0, 260, W, H - 260);
-
-  // Foreground bushes
-  ctx.fillStyle = "#3d6b34";
-  for (let bx = 10; bx < W; bx += 80) {
-    ctx.beginPath();
-    ctx.ellipse(bx + 20, 270, 30, 18, 0, Math.PI, 0);
-    ctx.fill();
+  // Draw far trees (layer 0)
+  for (const tree of mh.trees) {
+    if (tree.layer === 0) drawMhBareTree(ctx, tree);
   }
+  ctx.restore();
 
-  // Draw far chickens first (behind), then med, then close
-  const layerOrder = [0, 3, 1, 2]; // far, bonus, med, close
-  for (const layerIdx of layerOrder) {
-    for (const c of mh.chickens) {
-      if (c.typeIdx !== layerIdx) continue;
-      drawChicken(ctx, c);
+  // Far chickens fly here (use far parallax)
+  ctx.save();
+  ctx.translate(pxFar, 0);
+  for (const c of mh.chickens) {
+    if (c.typeIdx === 0) drawChicken(ctx, c);
+  }
+  ctx.restore();
+
+  // ── Mid hills (autumn green-brown) ──
+  ctx.save();
+  ctx.translate(pxMid, 0);
+  drawMhHillCurve(ctx, W + 200, H, 370, "#6e7d3e",
+    [20, 0, -30, -15, 10, -25, -40, -10, 5, -20, 15, 0, -10]);
+
+  // Autumn grass texture on mid hills
+  const grassGrad = ctx.createLinearGradient(0, 370, 0, 430);
+  grassGrad.addColorStop(0, "rgba(139, 119, 42, 0.3)");
+  grassGrad.addColorStop(1, "rgba(139, 119, 42, 0)");
+  ctx.fillStyle = grassGrad;
+  ctx.fillRect(-200, 350, W + 400, 80);
+
+  // Draw mid trees (layer 1)
+  for (const tree of mh.trees) {
+    if (tree.layer === 1) drawMhBareTree(ctx, tree);
+  }
+  ctx.restore();
+
+  // Bonus + Med chickens fly here (use mid parallax)
+  ctx.save();
+  ctx.translate(pxMid, 0);
+  for (const c of mh.chickens) {
+    if (c.typeIdx === 3) drawChicken(ctx, c);
+  }
+  for (const c of mh.chickens) {
+    if (c.typeIdx === 1) drawChicken(ctx, c);
+  }
+  ctx.restore();
+
+  // ── Near hills / meadow ──
+  ctx.save();
+  ctx.translate(pxNear, 0);
+  drawMhHillCurve(ctx, W + 300, H, 470, "#8a9a4a",
+    [15, 0, -10, 5, -15, 0, 10, -5, 0, 5, -10, 0, 8]);
+
+  // Ground fill
+  const gndGrad = ctx.createLinearGradient(0, 470, 0, H);
+  gndGrad.addColorStop(0, "#8a9a4a");
+  gndGrad.addColorStop(0.3, "#6b8035");
+  gndGrad.addColorStop(1, "#4a5c28");
+  ctx.fillStyle = gndGrad;
+  ctx.fillRect(-300, 470, W + 600, H - 470);
+
+  // Dirt path
+  ctx.fillStyle = "#8b7355";
+  ctx.beginPath();
+  ctx.moveTo(W * 0.3, H);
+  ctx.quadraticCurveTo(W * 0.35, H - 80, W * 0.55, H - 140);
+  ctx.quadraticCurveTo(W * 0.65, H - 160, W * 0.7, H - 160);
+  ctx.quadraticCurveTo(W * 0.72, H - 160, W * 0.8, H - 130);
+  ctx.quadraticCurveTo(W * 0.9, H - 60, W * 0.85, H);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(180, 155, 120, 0.3)";
+  ctx.beginPath();
+  ctx.moveTo(W * 0.35, H);
+  ctx.quadraticCurveTo(W * 0.4, H - 70, W * 0.57, H - 130);
+  ctx.quadraticCurveTo(W * 0.64, H - 145, W * 0.68, H - 150);
+  ctx.quadraticCurveTo(W * 0.75, H - 140, W * 0.82, H - 100);
+  ctx.quadraticCurveTo(W * 0.88, H - 50, W * 0.82, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // Grass tufts
+  ctx.strokeStyle = "#5a7030";
+  ctx.lineWidth = 2;
+  for (let gx = -200; gx < W + 200; gx += 35 + Math.sin(gx * 0.3) * 15) {
+    const gy = 500 + Math.sin(gx * 0.1) * 20;
+    if (gy > H) continue;
+    for (let j = 0; j < 3; j++) {
+      ctx.beginPath();
+      ctx.moveTo(gx + j * 4, gy);
+      ctx.quadraticCurveTo(gx + j * 4 - 3 + j * 2, gy - 10 - j * 3, gx + j * 4 - 5 + j * 4, gy - 18 - j * 2);
+      ctx.stroke();
     }
   }
 
-  // Particles (feathers)
+  // Near trees (layer 2)
+  for (const tree of mh.trees) {
+    if (tree.layer === 2) drawMhBareTree(ctx, tree);
+  }
+  ctx.restore();
+
+  // Close chickens (near parallax)
+  ctx.save();
+  ctx.translate(pxNear, 0);
+  for (const c of mh.chickens) {
+    if (c.typeIdx === 2) drawChicken(ctx, c);
+  }
+  ctx.restore();
+
+  // ── Fence (foreground parallax) ──
+  ctx.save();
+  ctx.translate(pxFg, 0);
+  const fenceY = 540;
+  const fenceH2 = 55;
+  const railY1 = fenceY - fenceH2 * 0.7;
+  const railY2 = fenceY - fenceH2 * 0.35;
+  ctx.strokeStyle = "#6b5239";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-200, railY1);
+  ctx.lineTo(W + 400, railY1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-200, railY2);
+  ctx.lineTo(W + 400, railY2);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(160, 130, 95, 0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-200, railY1 - 1);
+  ctx.lineTo(W + 400, railY1 - 1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-200, railY2 - 1);
+  ctx.lineTo(W + 400, railY2 - 1);
+  ctx.stroke();
+
+  for (const post of mh.fencePosts) {
+    ctx.save();
+    ctx.translate(post.x, fenceY);
+    ctx.rotate(post.lean);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+    ctx.fillRect(3, -fenceH2 - 5, 7, fenceH2 + 10);
+    ctx.fillStyle = "#7a6245";
+    ctx.fillRect(-3, -fenceH2 - 5, 7, fenceH2 + 10);
+    ctx.fillStyle = "rgba(180, 155, 120, 0.4)";
+    ctx.fillRect(-2, -fenceH2 - 5, 3, fenceH2 + 10);
+    ctx.fillStyle = "#6b5239";
+    ctx.beginPath();
+    ctx.moveTo(-4, -fenceH2 - 5);
+    ctx.lineTo(0.5, -fenceH2 - 14);
+    ctx.lineTo(5, -fenceH2 - 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Bushes along fence
+  for (let bx = -200; bx < W + 400; bx += 65 + Math.sin(bx * 0.2) * 20) {
+    const bushY = fenceY + 5;
+    const bw = 25 + Math.sin(bx * 0.5) * 10;
+    ctx.fillStyle = "#3d5a1e";
+    ctx.beginPath();
+    ctx.ellipse(bx, bushY, bw, bw * 0.55, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#4a6b25";
+    ctx.beginPath();
+    ctx.ellipse(bx - 3, bushY - 2, bw * 0.6, bw * 0.35, 0, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // Foreground grass blades
+  ctx.strokeStyle = "#3a5018";
+  ctx.lineWidth = 2.5;
+  for (let gx = -200; gx < W + 400; gx += 18) {
+    const gy = H - 10 + Math.sin(gx * 0.3) * 8;
+    ctx.beginPath();
+    ctx.moveTo(gx, H);
+    ctx.quadraticCurveTo(gx - 4, gy, gx - 8, gy - 15);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(gx + 6, H);
+    ctx.quadraticCurveTo(gx + 8, gy + 3, gx + 12, gy - 10);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Particles (feathers) ──
   for (const p of mh.particles) {
     ctx.globalAlpha = p.life;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.vx * 0.3 + p.vy * 0.1);
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    // Feather shape: small ellipse
-    ctx.ellipse(p.x, p.y, 4, 2, p.vx * 0.5, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
     ctx.fill();
+    // Feather spine
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(-5, 0);
+    ctx.lineTo(5, 0);
+    ctx.stroke();
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
 
-  // Score popups
+  // ── Score popups ──
   for (const sp of mh.scorePopups) {
     ctx.globalAlpha = sp.life;
-    ctx.fillStyle = sp.color;
-    ctx.font = "bold 16px 'Baloo 2'";
+    ctx.font = "bold 28px 'Baloo 2'";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillText(sp.text, sp.x + 2, sp.y + 2);
+    // Text
+    ctx.fillStyle = sp.color;
     ctx.fillText(sp.text, sp.x, sp.y);
   }
   ctx.globalAlpha = 1;
   ctx.textBaseline = "alphabetic";
 
-  // Muzzle flash
+  // ── Muzzle flash ──
   if (mh.muzzleFlash > 0) {
-    ctx.globalAlpha = mh.muzzleFlash * 0.4;
-    ctx.fillStyle = "#fef08a";
+    ctx.globalAlpha = mh.muzzleFlash * 0.5;
+    const flashGrad = ctx.createRadialGradient(
+      mh.crosshairX, mh.crosshairY, 0,
+      mh.crosshairX, mh.crosshairY, 30
+    );
+    flashGrad.addColorStop(0, "#ffffff");
+    flashGrad.addColorStop(0.3, "#fef08a");
+    flashGrad.addColorStop(1, "rgba(254, 240, 138, 0)");
+    ctx.fillStyle = flashGrad;
     ctx.beginPath();
-    ctx.arc(mh.crosshairX, mh.crosshairY, 15, 0, Math.PI * 2);
+    ctx.arc(mh.crosshairX, mh.crosshairY, 30, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 
-  // HUD: ammo dots at bottom
+  // ── HUD ──
   if (mh.active) {
-    const dotR = 4;
-    const dotSpacing = 14;
-    const dotsStartX = W / 2 - (MH_MAX_AMMO * dotSpacing) / 2;
+    // Ammo: shotgun shells at bottom-center
+    const shellW = 8;
+    const shellH = 22;
+    const shellGap = 14;
+    const shellsStartX = W / 2 - (MH_MAX_AMMO * shellGap) / 2;
     for (let i = 0; i < MH_MAX_AMMO; i++) {
-      ctx.beginPath();
-      ctx.arc(dotsStartX + i * dotSpacing + dotR, H - 14, dotR, 0, Math.PI * 2);
-      ctx.fillStyle = i < mh.ammo ? "#dc2626" : "#4b5563";
-      ctx.fill();
+      const sx = shellsStartX + i * shellGap;
+      const sy = H - 35;
+      if (i < mh.ammo) {
+        // Full shell - brass base
+        ctx.fillStyle = "#d4a030";
+        ctx.fillRect(sx, sy + shellH - 6, shellW, 6);
+        // Shell body (red)
+        ctx.fillStyle = "#b91c1c";
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + shellH - 6);
+        ctx.lineTo(sx, sy + 2);
+        ctx.arc(sx + shellW / 2, sy + 2, shellW / 2, Math.PI, 0);
+        ctx.lineTo(sx + shellW, sy + shellH - 6);
+        ctx.closePath();
+        ctx.fill();
+        // Highlight
+        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.fillRect(sx + 1, sy + 3, 3, shellH - 10);
+      } else {
+        // Empty slot
+        ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
+        ctx.fillRect(sx, sy, shellW, shellH);
+      }
     }
 
-    // Timer bar
-    const barW = 100;
-    const barH = 6;
-    const barX = W - barW - 10;
-    const barY = 10;
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.fillRect(barX, barY, barW, barH);
-    const pct = mh.timeLeft / MH_DURATION;
-    ctx.fillStyle = pct > 0.25 ? "#22c55e" : "#ef4444";
-    ctx.fillRect(barX, barY, barW * pct, barH);
-
-    // Score in top-left
+    // Timer bar at top-right
+    const barW = 180;
+    const barH = 12;
+    const barX = W - barW - 18;
+    const barY = 16;
+    // Bar bg
     ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.font = "bold 18px 'Baloo 2'";
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 6);
+    ctx.fill();
+    const pct = mh.timeLeft / MH_DURATION;
+    // Bar fill
+    const barColor = pct > 0.5 ? "#22c55e" : pct > 0.25 ? "#eab308" : "#ef4444";
+    ctx.fillStyle = barColor;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW * pct, barH, 6);
+    ctx.fill();
+    // Bar highlight
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.beginPath();
+    ctx.roundRect(barX + 2, barY + 2, barW * pct - 4, barH / 2 - 1, 3);
+    ctx.fill();
+    // Timer text
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 14px 'Baloo 2'";
+    ctx.textAlign = "center";
+    ctx.fillText(`${mh.timeLeft}s`, barX + barW / 2, barY + barH + 16);
+
+    // Score at top-left with shadow
+    ctx.font = "bold 36px 'Baloo 2'";
     ctx.textAlign = "left";
-    ctx.fillText(`${mh.score}`, 12, 22);
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillText(`${mh.score}`, 22, 42);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(`${mh.score}`, 20, 40);
+    ctx.font = "bold 14px 'Baloo 2'";
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillText("Punkte", 20, 56);
 
     // Reloading indicator
     if (mh.reloading) {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.font = "bold 14px 'Baloo 2'";
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 70, H - 70, 140, 28, 8);
+      ctx.fill();
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 16px 'Baloo 2'";
       ctx.textAlign = "center";
-      ctx.fillText("Nachladen...", W / 2, H - 30);
+      ctx.fillText("Nachladen...", W / 2, H - 50);
     }
   }
 
-  // Crosshair
+  // ── Crosshair ──
   if (mh.active && !mh.paused) {
     const cx = mh.crosshairX;
     const cy = mh.crosshairY;
-    ctx.strokeStyle = "rgba(220, 38, 38, 0.8)";
-    ctx.lineWidth = 2;
+    const cr = 18;
+    const gap = 6;
+    const lineLen = 14;
+
+    // Outer glow
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
     ctx.stroke();
+
+    // Main circle
+    ctx.strokeStyle = "rgba(220, 38, 38, 0.9)";
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(cx - 18, cy); ctx.lineTo(cx - 6, cy);
-    ctx.moveTo(cx + 6, cy); ctx.lineTo(cx + 18, cy);
-    ctx.moveTo(cx, cy - 18); ctx.lineTo(cx, cy - 6);
-    ctx.moveTo(cx, cy + 6); ctx.lineTo(cx, cy + 18);
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
+
+    // Cross lines with gap
     ctx.beginPath();
-    ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+    ctx.moveTo(cx - cr - lineLen, cy); ctx.lineTo(cx - gap, cy);
+    ctx.moveTo(cx + gap, cy); ctx.lineTo(cx + cr + lineLen, cy);
+    ctx.moveTo(cx, cy - cr - lineLen); ctx.lineTo(cx, cy - gap);
+    ctx.moveTo(cx, cy + gap); ctx.lineTo(cx, cy + cr + lineLen);
+    ctx.stroke();
+
+    // Center dot
+    ctx.fillStyle = "rgba(220, 38, 38, 0.95)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Overlay text
+  // ── Overlay text ──
   if (overlayText) {
-    ctx.fillStyle = "rgba(30, 15, 6, 0.74)";
+    ctx.fillStyle = "rgba(20, 10, 3, 0.78)";
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#fcd34d";
-    ctx.font = "700 34px 'Baloo 2'";
+
+    // Title
+    ctx.font = "bold 64px 'Baloo 2'";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillText(overlayText, W / 2 + 3, H / 2 + 3);
+    ctx.fillStyle = "#fcd34d";
     ctx.fillText(overlayText, W / 2, H / 2);
+
+    if (overlayText === "MOORHUHN") {
+      ctx.font = "bold 20px 'Baloo 2'";
+      ctx.fillStyle = "#d4a574";
+      ctx.fillText("Klicke Starten und schiesse die Hühner ab!", W / 2, H / 2 + 50);
+    } else if (overlayText === "ENDE") {
+      ctx.font = "bold 24px 'Baloo 2'";
+      ctx.fillStyle = "#d4a574";
+      ctx.fillText(`Endstand: ${mh.score} Punkte`, W / 2, H / 2 + 50);
+    }
     ctx.textBaseline = "alphabetic";
   }
 }
@@ -3315,72 +3754,241 @@ function drawChicken(ctx, c) {
   const scaleX = facingRight ? 1 : -1;
   ctx.scale(scaleX, 1);
 
-  // Body color by type
-  const bodyColor = c.typeIdx === 3 ? "#fbbf24" : "#8B4513";
-  const wingColor = c.typeIdx === 3 ? "#f59e0b" : "#6d3410";
+  const isBonus = c.typeIdx === 3;
 
-  // Body (oval)
+  // Shadow under chicken
+  if (!c.hit) {
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.beginPath();
+    ctx.ellipse(2, h * 0.3, w * 0.35, h * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Tail feathers
+  const tailColors = isBonus ? ["#fbbf24", "#f59e0b"] : ["#5c3317", "#6b3a1f", "#4a2810"];
+  for (let i = 0; i < 3; i++) {
+    const angle = -0.3 - i * 0.2;
+    const tl = w * 0.35;
+    ctx.fillStyle = tailColors[i % tailColors.length];
+    ctx.save();
+    ctx.translate(-w * 0.35, -h * 0.05);
+    ctx.rotate(angle + Math.sin(c.wingPhase * 0.5 + i) * 0.05);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, tl, h * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Legs (dangling)
+  ctx.strokeStyle = isBonus ? "#d97706" : "#cc7a2e";
+  ctx.lineWidth = Math.max(1.5, w * 0.03);
+  const legDangle = Math.sin(c.wingPhase * 0.8) * 3;
+  // Left leg
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.08, h * 0.25);
+  ctx.lineTo(-w * 0.12, h * 0.45 + legDangle);
+  ctx.lineTo(-w * 0.18, h * 0.5 + legDangle);
+  ctx.stroke();
+  // Foot
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.18, h * 0.5 + legDangle);
+  ctx.lineTo(-w * 0.22, h * 0.52 + legDangle);
+  ctx.moveTo(-w * 0.18, h * 0.5 + legDangle);
+  ctx.lineTo(-w * 0.14, h * 0.52 + legDangle);
+  ctx.stroke();
+  // Right leg
+  ctx.beginPath();
+  ctx.moveTo(w * 0.05, h * 0.25);
+  ctx.lineTo(w * 0.02, h * 0.45 + legDangle * 0.8);
+  ctx.lineTo(-w * 0.04, h * 0.5 + legDangle * 0.8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.04, h * 0.5 + legDangle * 0.8);
+  ctx.lineTo(-w * 0.08, h * 0.52 + legDangle * 0.8);
+  ctx.moveTo(-w * 0.04, h * 0.5 + legDangle * 0.8);
+  ctx.lineTo(0, h * 0.52 + legDangle * 0.8);
+  ctx.stroke();
+
+  // Body
+  const bodyColor = isBonus ? "#fbbf24" : "#7a4a1e";
+  const bellyColor = isBonus ? "#fde68a" : "#c49a5c";
+  // Body shadow
+  ctx.fillStyle = isBonus ? "#d97706" : "#5c3317";
+  ctx.beginPath();
+  ctx.ellipse(1, 2, w * 0.38, h * 0.32, 0.05, 0, Math.PI * 2);
+  ctx.fill();
+  // Main body
   ctx.fillStyle = bodyColor;
   ctx.beginPath();
-  ctx.ellipse(0, 0, w / 2, h / 2.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, w * 0.36, h * 0.30, 0.05, 0, Math.PI * 2);
+  ctx.fill();
+  // Belly highlight
+  ctx.fillStyle = bellyColor;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.02, h * 0.06, w * 0.22, h * 0.18, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  // Body specular
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.beginPath();
+  ctx.ellipse(-w * 0.08, -h * 0.12, w * 0.15, h * 0.1, -0.3, 0, Math.PI * 2);
   ctx.fill();
 
-  // Wing (flapping)
-  const wingY = Math.sin(c.wingPhase) * h * 0.25;
+  // Wing (animated flapping)
+  const wingAngle = Math.sin(c.wingPhase) * 0.6;
+  const wingColor = isBonus ? "#f59e0b" : "#6b3a1f";
+  const wingTip = isBonus ? "#d97706" : "#4a2810";
+  ctx.save();
+  ctx.translate(-w * 0.05, -h * 0.05);
+  ctx.rotate(wingAngle);
+  // Wing shadow
+  ctx.fillStyle = wingTip;
+  ctx.beginPath();
+  ctx.ellipse(0, -h * 0.18, w * 0.3, h * 0.14, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  // Wing body
   ctx.fillStyle = wingColor;
   ctx.beginPath();
-  ctx.ellipse(-w * 0.1, wingY - 2, w / 3, h / 4, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(0, -h * 0.2, w * 0.28, h * 0.12, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  // Wing feather detail lines
+  ctx.strokeStyle = "rgba(0,0,0,0.15)";
+  ctx.lineWidth = 0.8;
+  for (let f = 0; f < 3; f++) {
+    const fx = -w * 0.15 + f * w * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(fx, -h * 0.12);
+    ctx.lineTo(fx - w * 0.05, -h * 0.28);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Neck
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.25, -h * 0.18, w * 0.1, h * 0.14, 0.2, 0, Math.PI * 2);
   ctx.fill();
 
   // Head
-  ctx.fillStyle = bodyColor;
+  const headR = h * 0.18;
+  const headX = w * 0.32;
+  const headY = -h * 0.3;
+  ctx.fillStyle = isBonus ? "#fbbf24" : "#8b5e34";
   ctx.beginPath();
-  ctx.arc(w / 2.5, -h / 4, h / 4, 0, Math.PI * 2);
+  ctx.arc(headX, headY, headR, 0, Math.PI * 2);
+  ctx.fill();
+  // Head highlight
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.beginPath();
+  ctx.arc(headX - headR * 0.2, headY - headR * 0.3, headR * 0.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Eye
+  // Comb (red floppy comb on top)
+  ctx.fillStyle = "#dc2626";
+  ctx.beginPath();
+  ctx.arc(headX - headR * 0.2, headY - headR * 0.8, headR * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(headX + headR * 0.1, headY - headR * 0.9, headR * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(headX - headR * 0.05, headY - headR * 0.7, headR * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wattle (red under beak)
+  ctx.fillStyle = "#dc2626";
+  ctx.beginPath();
+  ctx.ellipse(headX + headR * 0.5, headY + headR * 0.5, headR * 0.15, headR * 0.3, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye (with expression)
+  const eyeX = headX + headR * 0.3;
+  const eyeY = headY - headR * 0.15;
+  const eyeR = headR * 0.35;
+  // Eye white
   ctx.fillStyle = "white";
   ctx.beginPath();
-  ctx.arc(w / 2.5 + h / 8, -h / 3.5, h / 10, 0, Math.PI * 2);
+  ctx.ellipse(eyeX, eyeY, eyeR, eyeR * 0.9, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "black";
+  // Iris
+  ctx.fillStyle = isBonus ? "#92400e" : "#1a1a1a";
   ctx.beginPath();
-  ctx.arc(w / 2.5 + h / 7, -h / 3.5, h / 18, 0, Math.PI * 2);
+  ctx.arc(eyeX + eyeR * 0.15, eyeY, eyeR * 0.5, 0, Math.PI * 2);
   ctx.fill();
-
-  // Beak
-  ctx.fillStyle = "#f97316";
+  // Pupil
+  ctx.fillStyle = "#000000";
   ctx.beginPath();
-  ctx.moveTo(w / 2, -h / 4);
-  ctx.lineTo(w / 2 + h / 3, -h / 5);
-  ctx.lineTo(w / 2, -h / 7);
-  ctx.closePath();
+  ctx.arc(eyeX + eyeR * 0.2, eyeY, eyeR * 0.25, 0, Math.PI * 2);
   ctx.fill();
-
-  // Legs
-  ctx.strokeStyle = "#d97706";
-  ctx.lineWidth = 1.5;
+  // Eye shine
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
   ctx.beginPath();
-  ctx.moveTo(-w * 0.1, h / 3);
-  ctx.lineTo(-w * 0.15, h / 2 + 4);
-  ctx.moveTo(w * 0.1, h / 3);
-  ctx.lineTo(w * 0.15, h / 2 + 4);
+  ctx.arc(eyeX + eyeR * 0.05, eyeY - eyeR * 0.2, eyeR * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  // Eyelid (slightly angry expression)
+  ctx.strokeStyle = isBonus ? "#92400e" : "#5c3317";
+  ctx.lineWidth = Math.max(1, headR * 0.1);
+  ctx.beginPath();
+  ctx.arc(eyeX, eyeY, eyeR, -Math.PI * 0.8, -Math.PI * 0.2);
   ctx.stroke();
 
-  // Bonus sparkle
-  if (c.typeIdx === 3 && !c.hit) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    const sparkle = Math.sin(c.wingPhase * 2) * 0.5 + 0.5;
-    ctx.globalAlpha = sparkle;
-    ctx.font = `${Math.max(8, h / 2)}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("✦", 0, -h / 2 - 4);
+  // Beak
+  const beakLen = headR * 1.0;
+  ctx.fillStyle = "#e8940a";
+  ctx.beginPath();
+  ctx.moveTo(headX + headR * 0.7, headY - headR * 0.1);
+  ctx.lineTo(headX + headR * 0.7 + beakLen, headY + headR * 0.05);
+  ctx.lineTo(headX + headR * 0.7, headY + headR * 0.25);
+  ctx.closePath();
+  ctx.fill();
+  // Beak lower
+  ctx.fillStyle = "#cc7a05";
+  ctx.beginPath();
+  ctx.moveTo(headX + headR * 0.7, headY + headR * 0.1);
+  ctx.lineTo(headX + headR * 0.7 + beakLen * 0.8, headY + headR * 0.15);
+  ctx.lineTo(headX + headR * 0.7, headY + headR * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  // Beak nostril
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath();
+  ctx.arc(headX + headR * 0.9, headY + headR * 0.02, headR * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bonus sparkle effect
+  if (isBonus && !c.hit) {
+    const sparkle = Math.sin(c.wingPhase * 2);
+    ctx.globalAlpha = 0.4 + sparkle * 0.4;
+    const sparkleR = h * 0.08;
+    // Sparkle stars around the chicken
+    const sparklePositions = [
+      [-w * 0.4, -h * 0.3], [w * 0.1, -h * 0.5], [w * 0.4, -h * 0.1],
+      [-w * 0.3, h * 0.2], [w * 0.35, h * 0.25],
+    ];
+    ctx.fillStyle = "#ffffff";
+    for (const [sx, sy] of sparklePositions) {
+      const sPhase = c.wingPhase * 2 + sx * 0.1;
+      const sa = Math.sin(sPhase) * 0.5 + 0.5;
+      ctx.globalAlpha = sa * 0.7;
+      drawStar(ctx, sx, sy, sparkleR, sparkleR * 0.4, 4);
+    }
     ctx.globalAlpha = 1;
-    ctx.textBaseline = "alphabetic";
   }
 
   ctx.restore();
+}
+
+function drawStar(ctx, cx, cy, outerR, innerR, points) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (i * Math.PI) / points - Math.PI / 2;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
 }
 
 // ─── Moorhuhn SFX ───
@@ -3535,7 +4143,7 @@ function setupMoorhuhnEventListeners() {
     }
   });
 
-  // Mouse move on canvas for crosshair
+  // Mouse move on canvas for crosshair + parallax view
   els.moorhuhnCanvas.addEventListener("mousemove", (e) => {
     if (!state.moorhuhn.active || state.moorhuhn.paused) return;
     const rect = els.moorhuhnCanvas.getBoundingClientRect();
@@ -3543,6 +4151,8 @@ function setupMoorhuhnEventListeners() {
     const scaleY = els.moorhuhnCanvas.height / rect.height;
     state.moorhuhn.crosshairX = (e.clientX - rect.left) * scaleX;
     state.moorhuhn.crosshairY = (e.clientY - rect.top) * scaleY;
+    // viewX: -1 (looking left) to +1 (looking right)
+    state.moorhuhn.viewX = (state.moorhuhn.crosshairX / MH_W) * 2 - 1;
   });
 
   // Mouse click to shoot
@@ -3554,6 +4164,7 @@ function setupMoorhuhnEventListeners() {
     const y = (e.clientY - rect.top) * scaleY;
     state.moorhuhn.crosshairX = x;
     state.moorhuhn.crosshairY = y;
+    state.moorhuhn.viewX = (x / MH_W) * 2 - 1;
     handleMoorhuhnShoot(x, y);
   });
 
@@ -3569,6 +4180,7 @@ function setupMoorhuhnEventListeners() {
     const y = (touch.clientY - rect.top) * scaleY;
     state.moorhuhn.crosshairX = x;
     state.moorhuhn.crosshairY = y;
+    state.moorhuhn.viewX = (x / MH_W) * 2 - 1;
     handleMoorhuhnShoot(x, y);
   }, { passive: false });
 }
