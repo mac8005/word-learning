@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-02-24 16:07";
+const BUILD_DATE = "2026-02-24 16:53";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -3114,20 +3114,19 @@ function handleMoorhuhnShoot(canvasX, canvasY) {
   const mh = state.moorhuhn;
   if (!mh.active || mh.paused) return;
 
-  if (mh.reloading) {
-    playSfx("moorhuhnEmpty");
-    return;
-  }
+  if (mh.reloading) return; // silently wait while reloading
 
-  if (mh.ammo <= 0) {
-    playSfx("moorhuhnEmpty");
-    return;
-  }
+  if (mh.ammo <= 0) return; // should not happen with auto-reload
 
   mh.ammo -= 1;
   mh.muzzleFlash = 1;
   updateMoorhuhnStats();
   playSfx("moorhuhnShot");
+
+  // Auto-reload when last round is fired
+  if (mh.ammo === 0) {
+    reloadMoorhuhn();
+  }
 
   // Hit detection - check from front (close) to back (far) for proper layering
   // Chickens are drawn at c.x directly (no parallax offset), so compare canvasX to c.x
@@ -4591,8 +4590,12 @@ function setupMoorhuhnEventListeners() {
     state.moorhuhn.viewX = (state.moorhuhn.crosshairX / MH_W) * 2 - 1;
   });
 
-  // Mouse click to shoot
+  // Mouse click: start game if not running, otherwise shoot
   els.moorhuhnCanvas.addEventListener("click", (e) => {
+    if (!state.moorhuhn.active) {
+      startMoorhuhnGame();
+      return;
+    }
     const rect = els.moorhuhnCanvas.getBoundingClientRect();
     const scaleX = els.moorhuhnCanvas.width / rect.width;
     const scaleY = els.moorhuhnCanvas.height / rect.height;
