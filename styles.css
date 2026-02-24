@@ -902,6 +902,68 @@ select:focus {
   }
 }
 
+/* ─── Moorhuhn Modal theme ─── */
+
+.moorhuhn-theme .tetris-modal {
+  background: linear-gradient(160deg, #2d1a0e, #3d2516, #1e0f06);
+  border-color: #b45309;
+  box-shadow:
+    0 0 40px rgba(180, 83, 9, 0.3),
+    0 0 80px rgba(180, 83, 9, 0.1),
+    0 25px 60px rgba(0, 0, 0, 0.5);
+}
+
+.moorhuhn-theme .tetris-modal-header {
+  border-bottom-color: rgba(180, 83, 9, 0.3);
+}
+
+.moorhuhn-theme .tetris-stat-box {
+  border-color: rgba(180, 83, 9, 0.25);
+}
+
+.moorhuhn-theme .tetris-stat-label {
+  color: #fbbf24;
+}
+
+.moorhuhn-theme .tetris-glow {
+  box-shadow:
+    0 0 20px rgba(180, 83, 9, 0.35),
+    0 0 50px rgba(180, 83, 9, 0.1);
+}
+
+.moorhuhn-theme .tetris-close-btn {
+  color: #fcd34d;
+}
+
+.moorhuhn-title {
+  background: linear-gradient(90deg, #fcd34d, #f59e0b, #d97706);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.moorhuhn-canvas {
+  border-color: #92400e !important;
+  background: linear-gradient(180deg, #7dd3fc, #fef9c3) !important;
+  width: 480px;
+  height: 320px;
+  cursor: crosshair;
+}
+
+.moorhuhn-modal-wide {
+  width: min(680px, 96vw);
+}
+
+.moorhuhn-stage {
+  align-items: center;
+}
+
+.moorhuhn-reload-btn {
+  background: linear-gradient(130deg, #d97706, #b45309);
+  color: white;
+  padding: 0.65rem 1.2rem;
+}
+
 /* ─── Celebration ─── */
 
 .celebration {
@@ -1090,5 +1152,21 @@ body.modal-open {
   .snake-dpad {
     gap: 0.15rem;
     flex-shrink: 0;
+  }
+
+  .moorhuhn-canvas {
+    width: auto !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    aspect-ratio: 3 / 2 !important;
+  }
+
+  .moorhuhn-stage {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .moorhuhn-modal-wide {
+    width: 100%;
   }
 }

@@ -143,6 +143,18 @@
                 <button id="openSnakeBtn" class="btn arcade-play">Snake öffnen</button>
               </div>
             </div>
+            <!-- Moorhuhn -->
+            <div class="arcade-game-row">
+              <div class="arcade-game-header">
+                <span class="arcade-game-name">🐔 Moorhuhn</span>
+                <span class="ticket-badge">Spiele: <strong id="moorhuhnPlays">0</strong></span>
+              </div>
+              <p class="small-note">Schiesse fliegende Hühner ab und sammle Punkte.</p>
+              <div class="arcade-actions">
+                <button id="buyMoorhuhnPlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
+                <button id="openMoorhuhnBtn" class="btn arcade-play">Moorhuhn öffnen</button>
+              </div>
+            </div>
           </div>
           <p id="miniGameFeedback" class="feedback"></p>
         </section>
@@ -277,6 +289,59 @@
           </div>
           <p class="tetris-hint tetris-hint-keyboard">← → ↑ ↓ / WASD bewegen &middot; Leertaste Pause</p>
           <p id="snakeModalFeedback" class="feedback tetris-feedback"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Moorhuhn Modal -->
+    <div class="tetris-modal-backdrop hidden moorhuhn-theme" id="moorhuhnModalBackdrop">
+      <div class="tetris-modal moorhuhn-modal-wide" id="moorhuhnModal">
+        <div class="tetris-modal-header">
+          <h2 class="tetris-modal-title moorhuhn-title">🐔 Moorhuhn</h2>
+          <div class="tetris-modal-badges">
+            <span class="tetris-badge coin-inline" id="moorhuhnCoins">Münzen: 0</span>
+            <span class="tetris-badge ticket-inline">Spiele: <strong id="moorhuhnPlaysModal">0</strong></span>
+          </div>
+          <button class="tetris-close-btn" id="closeMoorhuhnBtn" aria-label="Schliessen">&times;</button>
+        </div>
+        <div class="tetris-modal-body">
+          <div class="tetris-stage moorhuhn-stage">
+            <div class="tetris-stats-col">
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Punkte</span>
+                <span class="tetris-stat-value" id="moorhuhnScore">0</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Zeit</span>
+                <span class="tetris-stat-value" id="moorhuhnTime">60</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Schuss</span>
+                <span class="tetris-stat-value" id="moorhuhnAmmo">8</span>
+              </div>
+              <div class="tetris-stat-box">
+                <span class="tetris-stat-label">Rekord</span>
+                <span class="tetris-stat-value" id="moorhuhnHighscore">0</span>
+              </div>
+            </div>
+            <div class="tetris-canvas-wrapper">
+              <canvas
+                id="moorhuhnCanvas"
+                class="tetris-canvas moorhuhn-canvas"
+                width="480"
+                height="320"
+                aria-label="Moorhuhn Spielfeld"
+              ></canvas>
+              <div class="tetris-glow"></div>
+            </div>
+          </div>
+          <div class="tetris-controls">
+            <button id="startMoorhuhnBtn" class="btn tetris-btn-start">Moorhuhn starten</button>
+            <button id="pauseMoorhuhnBtn" class="btn tetris-btn-pause">Pause</button>
+            <button id="reloadMoorhuhnBtn" class="btn moorhuhn-reload-btn">Nachladen (R)</button>
+          </div>
+          <p class="tetris-hint tetris-hint-keyboard">Klicken = Schiessen &middot; R = Nachladen &middot; Leertaste = Pause</p>
+          <p id="moorhuhnModalFeedback" class="feedback tetris-feedback"></p>
         </div>
       </div>
     </div>

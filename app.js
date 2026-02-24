@@ -20,6 +20,44 @@ const SNAKE_LEVEL_SPEEDS = [190,165,143,124,108,95,84,75,68,62,57,53,50,47,45];
 const TETRIS_HIGHSCORE_KEY = "word_galaxy_tetris_highscore";
 const SNAKE_HIGHSCORE_KEY = "word_galaxy_snake_highscore";
 
+const MOORHUHN_PLAYS_STORAGE_KEY = "word_galaxy_moorhuhn_plays";
+const MOORHUHN_HIGHSCORE_KEY = "word_galaxy_moorhuhn_highscore";
+const MOORHUHN_PLAY_BUNDLE_COST = 20;
+const MH_W = 480;
+const MH_H = 320;
+const MH_DURATION = 60;
+const MH_MAX_AMMO = 8;
+const MH_CHICKEN_TYPES = [
+  { name: "far",    speed: 0.8, points: 50,  w: 22, h: 16 },
+  { name: "med",    speed: 1.4, points: 25,  w: 32, h: 24 },
+  { name: "close",  speed: 2.2, points: 10,  w: 46, h: 34 },
+  { name: "bonus",  speed: 3.0, points: 100, w: 28, h: 20 },
+];
+
+// Moorhuhn 8-bit hunting theme melody [frequency, eighthNotes]
+const MOORHUHN_MELODY = [
+  [392,2],[440,1],[494,1],[523,2],[494,1],[440,1],
+  [392,2],[330,2],[294,2],[330,2],
+  [392,2],[440,1],[494,1],[523,2],[587,1],[523,1],
+  [494,2],[440,2],[392,4],
+  [330,2],[392,1],[440,1],[494,2],[440,1],[392,1],
+  [330,2],[294,2],[262,4],
+  [294,2],[330,1],[392,1],[440,2],[392,1],[330,1],
+  [294,2],[262,2],[294,4],
+];
+
+// Moorhuhn theme bass [frequency, eighthNotes]
+const MOORHUHN_BASS = [
+  [196,4],[165,4],
+  [147,4],[165,4],
+  [196,4],[196,4],
+  [165,4],[131,4],
+  [165,4],[165,4],
+  [131,4],[131,4],
+  [147,4],[165,4],
+  [147,4],[131,4],
+];
+
 const SHAPES = {
   I: [
     [0, 0, 0, 0],
@@ -132,6 +170,8 @@ const state = {
   snakePlays: 0,
   tetrisHighscore: 0,
   snakeHighscore: 0,
+  moorhuhnPlays: 0,
+  moorhuhnHighscore: 0,
   germanVoice: null,
   audioCtx: null,
   savedScrollY: 0,
@@ -172,6 +212,30 @@ const state = {
     musicGain: null,
     musicMelodyIdx: 0,
     musicBassIdx: 0,
+  },
+  moorhuhn: {
+    active: false,
+    paused: false,
+    score: 0,
+    timeLeft: MH_DURATION,
+    ammo: MH_MAX_AMMO,
+    reloading: false,
+    reloadTimer: 0,
+    chickens: [],
+    particles: [],
+    scorePopups: [],
+    clouds: [],
+    rafId: 0,
+    timerId: 0,
+    spawnTimer: 0,
+    musicTimerId: 0,
+    musicGain: null,
+    musicMelodyIdx: 0,
+    musicBassIdx: 0,
+    bgScrollX: 0,
+    crosshairX: MH_W / 2,
+    crosshairY: MH_H / 2,
+    muzzleFlash: 0,
   },
 };
 
@@ -259,11 +323,30 @@ const els = {
   snakeTouchDown: document.getElementById("snakeTouchDown"),
   snakeTouchLeft: document.getElementById("snakeTouchLeft"),
   snakeTouchRight: document.getElementById("snakeTouchRight"),
+  // Moorhuhn panel
+  moorhuhnPlays: document.getElementById("moorhuhnPlays"),
+  buyMoorhuhnPlaysBtn: document.getElementById("buyMoorhuhnPlaysBtn"),
+  openMoorhuhnBtn: document.getElementById("openMoorhuhnBtn"),
+  // Moorhuhn modal
+  moorhuhnModalBackdrop: document.getElementById("moorhuhnModalBackdrop"),
+  closeMoorhuhnBtn: document.getElementById("closeMoorhuhnBtn"),
+  moorhuhnCoins: document.getElementById("moorhuhnCoins"),
+  moorhuhnPlaysModal: document.getElementById("moorhuhnPlaysModal"),
+  moorhuhnScore: document.getElementById("moorhuhnScore"),
+  moorhuhnTime: document.getElementById("moorhuhnTime"),
+  moorhuhnAmmo: document.getElementById("moorhuhnAmmo"),
+  moorhuhnHighscore: document.getElementById("moorhuhnHighscore"),
+  moorhuhnCanvas: document.getElementById("moorhuhnCanvas"),
+  startMoorhuhnBtn: document.getElementById("startMoorhuhnBtn"),
+  pauseMoorhuhnBtn: document.getElementById("pauseMoorhuhnBtn"),
+  reloadMoorhuhnBtn: document.getElementById("reloadMoorhuhnBtn"),
+  moorhuhnModalFeedback: document.getElementById("moorhuhnModalFeedback"),
 };
 
 const tetrisCtx = els.tetrisCanvas.getContext("2d");
 const nextCtx = els.nextPieceCanvas.getContext("2d");
 const snakeCtx = els.snakeCanvas.getContext("2d");
+const mhCtx = els.moorhuhnCanvas.getContext("2d");
 
 initialize();
 
@@ -273,18 +356,25 @@ async function initialize() {
   state.snakePlays = loadSnakePlays();
   state.tetrisHighscore = loadTetrisHighscore();
   state.snakeHighscore = loadSnakeHighscore();
+  state.moorhuhnPlays = loadMoorhuhnPlays();
+  state.moorhuhnHighscore = loadMoorhuhnHighscore();
   updateCoinDisplay();
   updateTetrisPlayDisplay();
   updateSnakePlaysDisplay();
+  updateMoorhuhnPlaysDisplay();
   updateTetrisHighscoreDisplay();
   updateSnakeHighscoreDisplay();
+  updateMoorhuhnHighscoreDisplay();
   updateTetrisStats();
   updateSnakeStats();
+  updateMoorhuhnStats();
   bindEvents();
   setupSnakeEventListeners();
+  setupMoorhuhnEventListeners();
   setupSpeechVoices();
   drawTetris("TETRIS");
   drawSnakeGame("SNAKE");
+  drawMoorhuhnScene("MOORHUHN");
 
   const buildEl = document.getElementById("buildInfo");
   if (buildEl) buildEl.textContent = "Build: " + BUILD_DATE;
@@ -1131,7 +1221,7 @@ function renderMistakes() {
         : "Die Schreibweise ist falsch.";
     }
     const wrongLabel = isMathMode() ? "Falsche Antwort vorlesen" : "Falsche Eingabe vorlesen";
-    const correctLabel = isMathMode() ? "Richtige Antwort vorlesen" : "Richtiges Wort vorlesen";
+    const correctLabel = isMathMode() ? "Aufgabe vorlesen" : "Richtiges Wort vorlesen";
     const inputPlaceholder = isMathMode() ? "Korrekte Antwort eingeben" : "Korrektes Wort eingeben";
     const promptLine = isMathMode()
       ? `<p class="mistake-meta">Aufgabe: <strong>${escapeHtml(mistake.prompt ?? "")}</strong></p>`
@@ -1148,7 +1238,7 @@ function renderMistakes() {
 
     const retryAudioButton = row.querySelector(".retry-audio");
     if (retryAudioButton) {
-      retryAudioButton.addEventListener("click", () => speakWord(mistake.target));
+      retryAudioButton.addEventListener("click", () => speakWord(isMathMode() ? mistake.prompt : mistake.target));
     }
     const speakWrongButton = row.querySelector(".speak-wrong");
     if (speakWrongButton) {
@@ -1281,6 +1371,7 @@ function updateCoinDisplay() {
   els.coinCount.textContent = String(state.coins);
   els.tetrisCoins.textContent = `Münzen: ${state.coins}`;
   els.snakeCoins.textContent = `Münzen: ${state.coins}`;
+  els.moorhuhnCoins.textContent = `Münzen: ${state.coins}`;
 }
 
 function loadTetrisPlays() {
@@ -2256,6 +2347,34 @@ function playSfx(name) {
     playTone(280, 0.09, { type: "sawtooth", gain: 0.018, endFrequency: 180 });
     playTone(210, 0.1, { type: "sawtooth", gain: 0.018, delay: 0.09, endFrequency: 130 });
     playTone(160, 0.12, { type: "sawtooth", gain: 0.018, delay: 0.19, endFrequency: 90 });
+  } else if (name === "moorhuhnShot") {
+    // Gunshot: white noise burst + low thump
+    const ctx = ensureAudio();
+    if (ctx) {
+      const bufSize = ctx.sampleRate * 0.06;
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.06, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.06);
+      src.connect(g).connect(ctx.destination);
+      src.start();
+    }
+    playTone(80, 0.05, { type: "sine", gain: 0.04 });
+  } else if (name === "moorhuhnHit") {
+    // Chicken squawk
+    playTone(800, 0.06, { type: "square", gain: 0.02, endFrequency: 1200 });
+    playTone(1000, 0.05, { type: "square", gain: 0.015, delay: 0.06, endFrequency: 600 });
+  } else if (name === "moorhuhnReload") {
+    // Metallic click
+    playTone(600, 0.03, { type: "square", gain: 0.02 });
+    playTone(400, 0.04, { type: "triangle", gain: 0.015, delay: 0.05 });
+  } else if (name === "moorhuhnEmpty") {
+    // Dry click
+    playTone(150, 0.03, { type: "square", gain: 0.01 });
   }
 }
 
@@ -2576,6 +2695,882 @@ function bindSnakeSwipeGestures(canvas) {
       startY = e.touches[0].clientY;
     }
   }, {passive: false});
+}
+
+// ─── Moorhuhn persistence & shop ───
+
+function loadMoorhuhnPlays() {
+  const parsed = Number.parseInt(window.localStorage.getItem(MOORHUHN_PLAYS_STORAGE_KEY) ?? "0", 10);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function saveMoorhuhnPlays() {
+  window.localStorage.setItem(MOORHUHN_PLAYS_STORAGE_KEY, String(state.moorhuhnPlays));
+}
+
+function updateMoorhuhnPlaysDisplay() {
+  els.moorhuhnPlays.textContent = String(state.moorhuhnPlays);
+  els.moorhuhnPlaysModal.textContent = String(state.moorhuhnPlays);
+}
+
+function loadMoorhuhnHighscore() {
+  const parsed = Number.parseInt(window.localStorage.getItem(MOORHUHN_HIGHSCORE_KEY) ?? "0", 10);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function saveMoorhuhnHighscore() {
+  window.localStorage.setItem(MOORHUHN_HIGHSCORE_KEY, String(state.moorhuhnHighscore));
+}
+
+function updateMoorhuhnHighscoreDisplay() {
+  els.moorhuhnHighscore.textContent = String(state.moorhuhnHighscore);
+}
+
+function updateMoorhuhnStats() {
+  els.moorhuhnScore.textContent = String(state.moorhuhn.score);
+  els.moorhuhnTime.textContent = String(state.moorhuhn.timeLeft);
+  els.moorhuhnAmmo.textContent = String(state.moorhuhn.ammo);
+}
+
+function buyMoorhuhnPlays() {
+  if (state.coins < MOORHUHN_PLAY_BUNDLE_COST) {
+    setFeedback(
+      els.miniGameFeedback,
+      `${MOORHUHN_PLAY_BUNDLE_COST} Münzen nötig. Erst Wörter trainieren.`,
+      "bad"
+    );
+    playSfx("error");
+    return;
+  }
+
+  addCoins(-MOORHUHN_PLAY_BUNDLE_COST);
+  state.moorhuhnPlays += 1;
+  saveMoorhuhnPlays();
+  updateMoorhuhnPlaysDisplay();
+  setFeedback(
+    els.miniGameFeedback,
+    `1 Moorhuhn-Spiel gekauft (−${MOORHUHN_PLAY_BUNDLE_COST} Münzen). Verbleibend: ${state.coins} Münzen.`,
+    "ok"
+  );
+  playSfx("buy");
+}
+
+// ─── Moorhuhn modal ───
+
+function openMoorhuhnModal() {
+  state.savedScrollY = window.scrollY;
+  document.body.classList.add("modal-open");
+  document.body.style.top = `-${state.savedScrollY}px`;
+  els.moorhuhnModalBackdrop.classList.remove("hidden");
+  updateCoinDisplay();
+  updateMoorhuhnPlaysDisplay();
+  updateMoorhuhnHighscoreDisplay();
+  drawMoorhuhnScene(state.moorhuhn.active ? "" : "MOORHUHN");
+  setFeedback(els.moorhuhnModalFeedback, "", "ok");
+}
+
+function closeMoorhuhnModal() {
+  if (state.moorhuhn.active) {
+    setFeedback(els.moorhuhnModalFeedback, "Beende erst das Spiel.", "bad");
+    return;
+  }
+  els.moorhuhnModalBackdrop.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  document.body.style.top = "";
+  window.scrollTo(0, state.savedScrollY || 0);
+}
+
+// ─── Moorhuhn game logic ───
+
+function startMoorhuhnGame() {
+  if (state.moorhuhn.active) {
+    setFeedback(els.moorhuhnModalFeedback, "Moorhuhn läuft bereits.", "bad");
+    return;
+  }
+
+  if (state.moorhuhnPlays < 1) {
+    setFeedback(
+      els.moorhuhnModalFeedback,
+      "Keine Spiele übrig. Kaufe 1 Spiel für 20 Münzen.",
+      "bad"
+    );
+    playSfx("error");
+    return;
+  }
+
+  state.moorhuhnPlays -= 1;
+  saveMoorhuhnPlays();
+  updateMoorhuhnPlaysDisplay();
+
+  initMoorhuhnRound();
+  state.moorhuhn.active = true;
+  state.moorhuhn.paused = false;
+  setFeedback(els.moorhuhnModalFeedback, "Moorhuhn gestartet. Viel Spass!", "ok");
+  playSfx("start");
+  startMoorhuhnMusic();
+
+  // Countdown timer
+  state.moorhuhn.timerId = setInterval(() => {
+    if (state.moorhuhn.paused) return;
+    state.moorhuhn.timeLeft -= 1;
+    updateMoorhuhnStats();
+    if (state.moorhuhn.timeLeft <= 0) {
+      endMoorhuhnGame();
+    }
+  }, 1000);
+
+  // Chicken spawn timer
+  state.moorhuhn.spawnTimer = setInterval(() => {
+    if (state.moorhuhn.paused) return;
+    spawnChicken();
+  }, 1200);
+
+  state.moorhuhn.rafId = requestAnimationFrame(runMoorhuhnFrame);
+}
+
+function initMoorhuhnRound() {
+  const mh = state.moorhuhn;
+  mh.score = 0;
+  mh.timeLeft = MH_DURATION;
+  mh.ammo = MH_MAX_AMMO;
+  mh.reloading = false;
+  mh.reloadTimer = 0;
+  mh.chickens = [];
+  mh.particles = [];
+  mh.scorePopups = [];
+  mh.bgScrollX = 0;
+  mh.crosshairX = MH_W / 2;
+  mh.crosshairY = MH_H / 2;
+  mh.muzzleFlash = 0;
+
+  // Spawn initial clouds
+  mh.clouds = [];
+  for (let i = 0; i < 5; i++) {
+    mh.clouds.push({
+      x: Math.random() * MH_W,
+      y: 15 + Math.random() * 60,
+      w: 40 + Math.random() * 60,
+      speed: 0.15 + Math.random() * 0.2,
+    });
+  }
+
+  // Spawn a few initial chickens
+  for (let i = 0; i < 3; i++) {
+    spawnChicken();
+  }
+
+  updateMoorhuhnStats();
+}
+
+function spawnChicken() {
+  const mh = state.moorhuhn;
+  // Pick type: 60% chance far, 25% med, 10% close, 5% bonus
+  const roll = Math.random();
+  let typeIdx;
+  if (roll < 0.05) typeIdx = 3; // bonus
+  else if (roll < 0.15) typeIdx = 2; // close
+  else if (roll < 0.40) typeIdx = 1; // med
+  else typeIdx = 0; // far
+
+  const type = MH_CHICKEN_TYPES[typeIdx];
+  const fromLeft = Math.random() < 0.5;
+  const x = fromLeft ? -type.w : MH_W + type.w;
+  const yMin = typeIdx === 0 ? 30 : typeIdx === 1 ? 60 : 120;
+  const yMax = typeIdx === 0 ? 100 : typeIdx === 1 ? 180 : 260;
+  const y = yMin + Math.random() * (yMax - yMin);
+  const vx = (fromLeft ? 1 : -1) * (type.speed + Math.random() * 0.5);
+
+  // Flight pattern
+  const patterns = ["straight", "wavy", "diving"];
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+
+  mh.chickens.push({
+    x, y, vx,
+    baseY: y,
+    w: type.w, h: type.h,
+    points: type.points,
+    typeIdx,
+    pattern,
+    phase: Math.random() * Math.PI * 2,
+    wingPhase: Math.random() * Math.PI * 2,
+    hit: false,
+    hitVy: 0,
+    hitRot: 0,
+    hitRotSpeed: 0,
+    alpha: 1,
+  });
+}
+
+function runMoorhuhnFrame(ts) {
+  if (!state.moorhuhn.active) return;
+  if (state.moorhuhn.paused) {
+    drawMoorhuhnScene("PAUSE");
+    return;
+  }
+
+  const mh = state.moorhuhn;
+
+  // Update chickens
+  for (let i = mh.chickens.length - 1; i >= 0; i--) {
+    const c = mh.chickens[i];
+    if (c.hit) {
+      c.hitVy += 0.3; // gravity
+      c.y += c.hitVy;
+      c.hitRot += c.hitRotSpeed;
+      c.alpha -= 0.008;
+      if (c.y > MH_H + 50 || c.alpha <= 0) {
+        mh.chickens.splice(i, 1);
+      }
+      continue;
+    }
+
+    c.x += c.vx;
+    c.phase += 0.04;
+    c.wingPhase += 0.2;
+
+    if (c.pattern === "wavy") {
+      c.y = c.baseY + Math.sin(c.phase) * 20;
+    } else if (c.pattern === "diving") {
+      c.y = c.baseY + Math.sin(c.phase * 0.7) * 35;
+    }
+
+    // Remove off-screen chickens
+    if ((c.vx > 0 && c.x > MH_W + c.w + 10) || (c.vx < 0 && c.x < -c.w - 10)) {
+      mh.chickens.splice(i, 1);
+    }
+  }
+
+  // Update particles
+  for (let i = mh.particles.length - 1; i >= 0; i--) {
+    const p = mh.particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.1; // gravity on feathers
+    p.life -= 0.03;
+    if (p.life <= 0) {
+      mh.particles.splice(i, 1);
+    }
+  }
+
+  // Update score popups
+  for (let i = mh.scorePopups.length - 1; i >= 0; i--) {
+    const sp = mh.scorePopups[i];
+    sp.y -= 0.8;
+    sp.life -= 0.02;
+    if (sp.life <= 0) {
+      mh.scorePopups.splice(i, 1);
+    }
+  }
+
+  // Update clouds
+  for (const cloud of mh.clouds) {
+    cloud.x += cloud.speed;
+    if (cloud.x > MH_W + cloud.w) {
+      cloud.x = -cloud.w;
+    }
+  }
+
+  // Decrease muzzle flash
+  if (mh.muzzleFlash > 0) mh.muzzleFlash -= 0.15;
+
+  // Scroll background slightly
+  mh.bgScrollX += 0.2;
+
+  drawMoorhuhnScene();
+  mh.rafId = requestAnimationFrame(runMoorhuhnFrame);
+}
+
+function handleMoorhuhnShoot(canvasX, canvasY) {
+  const mh = state.moorhuhn;
+  if (!mh.active || mh.paused) return;
+
+  if (mh.reloading) {
+    playSfx("moorhuhnEmpty");
+    return;
+  }
+
+  if (mh.ammo <= 0) {
+    playSfx("moorhuhnEmpty");
+    return;
+  }
+
+  mh.ammo -= 1;
+  mh.muzzleFlash = 1;
+  updateMoorhuhnStats();
+  playSfx("moorhuhnShot");
+
+  // Hit detection - check from front (close) to back (far) for proper layering
+  let hitChicken = null;
+  // Sort by typeIdx descending (close=2 first, then med=1, then far=0) for priority
+  const sortedChickens = [...mh.chickens].filter(c => !c.hit);
+  sortedChickens.sort((a, b) => b.typeIdx - a.typeIdx);
+
+  for (const c of sortedChickens) {
+    const cx = c.x;
+    const cy = c.y;
+    if (
+      canvasX >= cx - c.w / 2 &&
+      canvasX <= cx + c.w / 2 &&
+      canvasY >= cy - c.h / 2 &&
+      canvasY <= cy + c.h / 2
+    ) {
+      hitChicken = c;
+      break;
+    }
+  }
+
+  if (hitChicken) {
+    hitChicken.hit = true;
+    hitChicken.hitVy = -2;
+    hitChicken.hitRotSpeed = (Math.random() - 0.5) * 0.3;
+    mh.score += hitChicken.points;
+    updateMoorhuhnStats();
+
+    // Spawn feather particles
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      mh.particles.push({
+        x: hitChicken.x,
+        y: hitChicken.y,
+        vx: Math.cos(angle) * (1.5 + Math.random() * 2),
+        vy: Math.sin(angle) * (1.5 + Math.random() * 2) - 1,
+        life: 1,
+        color: hitChicken.typeIdx === 3 ? "#fbbf24" : "#8B4513",
+      });
+    }
+
+    // Score popup
+    mh.scorePopups.push({
+      x: hitChicken.x,
+      y: hitChicken.y - 10,
+      text: `+${hitChicken.points}`,
+      life: 1,
+      color: hitChicken.typeIdx === 3 ? "#fbbf24" : "#ffffff",
+    });
+
+    playSfx("moorhuhnHit");
+  }
+}
+
+function reloadMoorhuhn() {
+  const mh = state.moorhuhn;
+  if (!mh.active || mh.paused || mh.reloading) return;
+  if (mh.ammo >= MH_MAX_AMMO) return;
+
+  mh.reloading = true;
+  playSfx("moorhuhnReload");
+
+  clearTimeout(mh.reloadTimer);
+  mh.reloadTimer = setTimeout(() => {
+    mh.ammo = MH_MAX_AMMO;
+    mh.reloading = false;
+    updateMoorhuhnStats();
+  }, 800);
+}
+
+function endMoorhuhnGame() {
+  const mh = state.moorhuhn;
+  mh.active = false;
+  mh.paused = false;
+  clearInterval(mh.timerId);
+  clearInterval(mh.spawnTimer);
+  clearTimeout(mh.reloadTimer);
+  cancelAnimationFrame(mh.rafId);
+  stopMoorhuhnMusic();
+  drawMoorhuhnScene("ENDE");
+
+  let feedback = `Moorhuhn vorbei! Punkte: ${mh.score}. Trainiere Wörter für neue Spiele!`;
+  if (mh.score > 0 && mh.score > state.moorhuhnHighscore) {
+    state.moorhuhnHighscore = mh.score;
+    saveMoorhuhnHighscore();
+    updateMoorhuhnHighscoreDisplay();
+    feedback += " Neuer Rekord!";
+  }
+
+  setFeedback(els.moorhuhnModalFeedback, feedback, "ok");
+
+  if (mh.score >= 100) {
+    spawnCelebration();
+  }
+  playSfx("gameOver");
+}
+
+function toggleMoorhuhnPause() {
+  const mh = state.moorhuhn;
+  if (!mh.active) {
+    setFeedback(els.moorhuhnModalFeedback, "Starte zuerst eine Moorhuhn-Runde.", "bad");
+    return;
+  }
+  mh.paused = !mh.paused;
+  if (mh.paused) {
+    pauseMoorhuhnMusic();
+    setFeedback(els.moorhuhnModalFeedback, "Moorhuhn pausiert.", "ok");
+    drawMoorhuhnScene("PAUSE");
+  } else {
+    resumeMoorhuhnMusic();
+    setFeedback(els.moorhuhnModalFeedback, "Moorhuhn läuft weiter.", "ok");
+    mh.rafId = requestAnimationFrame(runMoorhuhnFrame);
+  }
+}
+
+// ─── Moorhuhn rendering ───
+
+function drawMoorhuhnScene(overlayText = "") {
+  const canvas = els.moorhuhnCanvas;
+  const ctx = mhCtx;
+  const W = canvas.width;
+  const H = canvas.height;
+  const mh = state.moorhuhn;
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, "#7dd3fc");
+  skyGrad.addColorStop(0.5, "#bae6fd");
+  skyGrad.addColorStop(1, "#fef9c3");
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Clouds
+  for (const cloud of mh.clouds) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.beginPath();
+    ctx.ellipse(cloud.x, cloud.y, cloud.w / 2, cloud.w / 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cloud.x - cloud.w * 0.2, cloud.y - 5, cloud.w / 3, cloud.w / 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cloud.x + cloud.w * 0.2, cloud.y + 2, cloud.w / 3, cloud.w / 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Mountains - far layer (dark)
+  ctx.fillStyle = "#4a6741";
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.bezierCurveTo(60, 140, 140, 100, 200, 150);
+  ctx.bezierCurveTo(260, 110, 320, 90, 380, 130);
+  ctx.bezierCurveTo(420, 100, 460, 120, W, 140);
+  ctx.lineTo(W, H);
+  ctx.fill();
+
+  // Mountains - mid layer
+  ctx.fillStyle = "#5c8a50";
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.bezierCurveTo(40, 180, 100, 150, 160, 190);
+  ctx.bezierCurveTo(220, 155, 280, 140, 340, 175);
+  ctx.bezierCurveTo(400, 150, 440, 160, W, 180);
+  ctx.lineTo(W, H);
+  ctx.fill();
+
+  // Mountains - near layer (lighter)
+  ctx.fillStyle = "#6da85e";
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.bezierCurveTo(50, 220, 120, 200, 180, 230);
+  ctx.bezierCurveTo(250, 210, 340, 190, 400, 220);
+  ctx.bezierCurveTo(440, 205, 470, 215, W, 210);
+  ctx.lineTo(W, H);
+  ctx.fill();
+
+  // Ground
+  ctx.fillStyle = "#4a7c3f";
+  ctx.fillRect(0, 260, W, H - 260);
+
+  // Foreground bushes
+  ctx.fillStyle = "#3d6b34";
+  for (let bx = 10; bx < W; bx += 80) {
+    ctx.beginPath();
+    ctx.ellipse(bx + 20, 270, 30, 18, 0, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // Draw far chickens first (behind), then med, then close
+  const layerOrder = [0, 3, 1, 2]; // far, bonus, med, close
+  for (const layerIdx of layerOrder) {
+    for (const c of mh.chickens) {
+      if (c.typeIdx !== layerIdx) continue;
+      drawChicken(ctx, c);
+    }
+  }
+
+  // Particles (feathers)
+  for (const p of mh.particles) {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    // Feather shape: small ellipse
+    ctx.ellipse(p.x, p.y, 4, 2, p.vx * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Score popups
+  for (const sp of mh.scorePopups) {
+    ctx.globalAlpha = sp.life;
+    ctx.fillStyle = sp.color;
+    ctx.font = "bold 16px 'Baloo 2'";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(sp.text, sp.x, sp.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textBaseline = "alphabetic";
+
+  // Muzzle flash
+  if (mh.muzzleFlash > 0) {
+    ctx.globalAlpha = mh.muzzleFlash * 0.4;
+    ctx.fillStyle = "#fef08a";
+    ctx.beginPath();
+    ctx.arc(mh.crosshairX, mh.crosshairY, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // HUD: ammo dots at bottom
+  if (mh.active) {
+    const dotR = 4;
+    const dotSpacing = 14;
+    const dotsStartX = W / 2 - (MH_MAX_AMMO * dotSpacing) / 2;
+    for (let i = 0; i < MH_MAX_AMMO; i++) {
+      ctx.beginPath();
+      ctx.arc(dotsStartX + i * dotSpacing + dotR, H - 14, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = i < mh.ammo ? "#dc2626" : "#4b5563";
+      ctx.fill();
+    }
+
+    // Timer bar
+    const barW = 100;
+    const barH = 6;
+    const barX = W - barW - 10;
+    const barY = 10;
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.fillRect(barX, barY, barW, barH);
+    const pct = mh.timeLeft / MH_DURATION;
+    ctx.fillStyle = pct > 0.25 ? "#22c55e" : "#ef4444";
+    ctx.fillRect(barX, barY, barW * pct, barH);
+
+    // Score in top-left
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.font = "bold 18px 'Baloo 2'";
+    ctx.textAlign = "left";
+    ctx.fillText(`${mh.score}`, 12, 22);
+
+    // Reloading indicator
+    if (mh.reloading) {
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.font = "bold 14px 'Baloo 2'";
+      ctx.textAlign = "center";
+      ctx.fillText("Nachladen...", W / 2, H - 30);
+    }
+  }
+
+  // Crosshair
+  if (mh.active && !mh.paused) {
+    const cx = mh.crosshairX;
+    const cy = mh.crosshairY;
+    ctx.strokeStyle = "rgba(220, 38, 38, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy); ctx.lineTo(cx - 6, cy);
+    ctx.moveTo(cx + 6, cy); ctx.lineTo(cx + 18, cy);
+    ctx.moveTo(cx, cy - 18); ctx.lineTo(cx, cy - 6);
+    ctx.moveTo(cx, cy + 6); ctx.lineTo(cx, cy + 18);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Overlay text
+  if (overlayText) {
+    ctx.fillStyle = "rgba(30, 15, 6, 0.74)";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#fcd34d";
+    ctx.font = "700 34px 'Baloo 2'";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(overlayText, W / 2, H / 2);
+    ctx.textBaseline = "alphabetic";
+  }
+}
+
+function drawChicken(ctx, c) {
+  ctx.save();
+  ctx.translate(c.x, c.y);
+
+  if (c.hit) {
+    ctx.rotate(c.hitRot);
+    ctx.globalAlpha = Math.max(0, c.alpha);
+  }
+
+  const w = c.w;
+  const h = c.h;
+  const facingRight = c.vx > 0;
+  const scaleX = facingRight ? 1 : -1;
+  ctx.scale(scaleX, 1);
+
+  // Body color by type
+  const bodyColor = c.typeIdx === 3 ? "#fbbf24" : "#8B4513";
+  const wingColor = c.typeIdx === 3 ? "#f59e0b" : "#6d3410";
+
+  // Body (oval)
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w / 2, h / 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wing (flapping)
+  const wingY = Math.sin(c.wingPhase) * h * 0.25;
+  ctx.fillStyle = wingColor;
+  ctx.beginPath();
+  ctx.ellipse(-w * 0.1, wingY - 2, w / 3, h / 4, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.arc(w / 2.5, -h / 4, h / 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye
+  ctx.fillStyle = "white";
+  ctx.beginPath();
+  ctx.arc(w / 2.5 + h / 8, -h / 3.5, h / 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "black";
+  ctx.beginPath();
+  ctx.arc(w / 2.5 + h / 7, -h / 3.5, h / 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Beak
+  ctx.fillStyle = "#f97316";
+  ctx.beginPath();
+  ctx.moveTo(w / 2, -h / 4);
+  ctx.lineTo(w / 2 + h / 3, -h / 5);
+  ctx.lineTo(w / 2, -h / 7);
+  ctx.closePath();
+  ctx.fill();
+
+  // Legs
+  ctx.strokeStyle = "#d97706";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.1, h / 3);
+  ctx.lineTo(-w * 0.15, h / 2 + 4);
+  ctx.moveTo(w * 0.1, h / 3);
+  ctx.lineTo(w * 0.15, h / 2 + 4);
+  ctx.stroke();
+
+  // Bonus sparkle
+  if (c.typeIdx === 3 && !c.hit) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    const sparkle = Math.sin(c.wingPhase * 2) * 0.5 + 0.5;
+    ctx.globalAlpha = sparkle;
+    ctx.font = `${Math.max(8, h / 2)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✦", 0, -h / 2 - 4);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = "alphabetic";
+  }
+
+  ctx.restore();
+}
+
+// ─── Moorhuhn SFX ───
+
+// (Added to playSfx below)
+
+// ─── Moorhuhn music ───
+
+function scheduleMoorhuhnMusicNote(freq, when, dur, type, vol) {
+  const ctx = state.audioCtx;
+  const dest = state.moorhuhn.musicGain;
+  if (!ctx || !dest) return;
+
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+
+  const end = when + dur;
+  const attack = when + 0.015;
+  const release = Math.max(attack + 0.001, end - 0.02);
+
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(vol, attack);
+  g.gain.setValueAtTime(vol, release);
+  g.gain.exponentialRampToValueAtTime(0.0001, end);
+
+  osc.connect(g).connect(dest);
+  osc.start(when);
+  osc.stop(end + 0.01);
+}
+
+function runMoorhuhnMusicScheduler() {
+  const ctx = state.audioCtx;
+  if (!ctx || !state.moorhuhn.musicGain) return;
+
+  const BPM = 132;
+  const eighth = 60 / BPM / 2;
+  let melTime = ctx.currentTime + 0.05;
+  let bassTime = ctx.currentTime + 0.05;
+
+  function tick() {
+    if (!state.moorhuhn.musicGain) return;
+
+    while (melTime < ctx.currentTime + 0.25) {
+      const [f, d] = MOORHUHN_MELODY[state.moorhuhn.musicMelodyIdx];
+      const dur = d * eighth;
+      if (f > 0) scheduleMoorhuhnMusicNote(f, melTime, dur * 0.9, "square", 0.010);
+      melTime += dur;
+      state.moorhuhn.musicMelodyIdx = (state.moorhuhn.musicMelodyIdx + 1) % MOORHUHN_MELODY.length;
+    }
+
+    while (bassTime < ctx.currentTime + 0.25) {
+      const [f, d] = MOORHUHN_BASS[state.moorhuhn.musicBassIdx];
+      const dur = d * eighth;
+      if (f > 0) scheduleMoorhuhnMusicNote(f, bassTime, dur * 0.85, "triangle", 0.008);
+      bassTime += dur;
+      state.moorhuhn.musicBassIdx = (state.moorhuhn.musicBassIdx + 1) % MOORHUHN_BASS.length;
+    }
+
+    state.moorhuhn.musicTimerId = setTimeout(tick, 100);
+  }
+
+  tick();
+}
+
+function startMoorhuhnMusic() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  stopMoorhuhnMusic();
+
+  const begin = () => {
+    const gain = ctx.createGain();
+    gain.gain.value = 1;
+    gain.connect(ctx.destination);
+    state.moorhuhn.musicGain = gain;
+    state.moorhuhn.musicMelodyIdx = 0;
+    state.moorhuhn.musicBassIdx = 0;
+    runMoorhuhnMusicScheduler();
+  };
+
+  if (ctx.state === "suspended") {
+    ctx.resume().then(begin);
+  } else {
+    begin();
+  }
+}
+
+function pauseMoorhuhnMusic() {
+  clearTimeout(state.moorhuhn.musicTimerId);
+  state.moorhuhn.musicTimerId = 0;
+  if (state.moorhuhn.musicGain && state.audioCtx) {
+    state.moorhuhn.musicGain.gain.setTargetAtTime(0, state.audioCtx.currentTime, 0.03);
+  }
+}
+
+function resumeMoorhuhnMusic() {
+  if (!state.moorhuhn.musicGain || !state.audioCtx) return;
+  state.moorhuhn.musicGain.gain.setTargetAtTime(1, state.audioCtx.currentTime, 0.03);
+  runMoorhuhnMusicScheduler();
+}
+
+function stopMoorhuhnMusic() {
+  clearTimeout(state.moorhuhn.musicTimerId);
+  state.moorhuhn.musicTimerId = 0;
+  if (state.moorhuhn.musicGain) {
+    try {
+      if (state.audioCtx) {
+        state.moorhuhn.musicGain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+      }
+      state.moorhuhn.musicGain.disconnect();
+    } catch (_) { /* ignore */ }
+    state.moorhuhn.musicGain = null;
+  }
+  state.moorhuhn.musicMelodyIdx = 0;
+  state.moorhuhn.musicBassIdx = 0;
+}
+
+// ─── Moorhuhn event listeners ───
+
+function setupMoorhuhnEventListeners() {
+  els.buyMoorhuhnPlaysBtn.addEventListener("click", buyMoorhuhnPlays);
+  els.openMoorhuhnBtn.addEventListener("click", openMoorhuhnModal);
+  els.closeMoorhuhnBtn.addEventListener("click", closeMoorhuhnModal);
+  els.startMoorhuhnBtn.addEventListener("click", startMoorhuhnGame);
+  els.pauseMoorhuhnBtn.addEventListener("click", toggleMoorhuhnPause);
+  els.reloadMoorhuhnBtn.addEventListener("click", reloadMoorhuhn);
+
+  els.moorhuhnModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === els.moorhuhnModalBackdrop && !state.moorhuhn.active) {
+      closeMoorhuhnModal();
+    }
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (els.moorhuhnModalBackdrop.classList.contains("hidden")) return;
+
+    if (event.key === "Escape") {
+      if (!state.moorhuhn.active) closeMoorhuhnModal();
+      return;
+    }
+
+    if (event.key === " ") {
+      event.preventDefault();
+      toggleMoorhuhnPause();
+      return;
+    }
+
+    if ((event.key === "r" || event.key === "R") && state.moorhuhn.active && !state.moorhuhn.paused) {
+      event.preventDefault();
+      reloadMoorhuhn();
+    }
+  });
+
+  // Mouse move on canvas for crosshair
+  els.moorhuhnCanvas.addEventListener("mousemove", (e) => {
+    if (!state.moorhuhn.active || state.moorhuhn.paused) return;
+    const rect = els.moorhuhnCanvas.getBoundingClientRect();
+    const scaleX = els.moorhuhnCanvas.width / rect.width;
+    const scaleY = els.moorhuhnCanvas.height / rect.height;
+    state.moorhuhn.crosshairX = (e.clientX - rect.left) * scaleX;
+    state.moorhuhn.crosshairY = (e.clientY - rect.top) * scaleY;
+  });
+
+  // Mouse click to shoot
+  els.moorhuhnCanvas.addEventListener("click", (e) => {
+    const rect = els.moorhuhnCanvas.getBoundingClientRect();
+    const scaleX = els.moorhuhnCanvas.width / rect.width;
+    const scaleY = els.moorhuhnCanvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    state.moorhuhn.crosshairX = x;
+    state.moorhuhn.crosshairY = y;
+    handleMoorhuhnShoot(x, y);
+  });
+
+  // Touch support
+  els.moorhuhnCanvas.addEventListener("touchstart", (e) => {
+    if (!state.moorhuhn.active || state.moorhuhn.paused) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = els.moorhuhnCanvas.getBoundingClientRect();
+    const scaleX = els.moorhuhnCanvas.width / rect.width;
+    const scaleY = els.moorhuhnCanvas.height / rect.height;
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
+    state.moorhuhn.crosshairX = x;
+    state.moorhuhn.crosshairY = y;
+    handleMoorhuhnShoot(x, y);
+  }, { passive: false });
 }
 
 // ─── Utilities ───
