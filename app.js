@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:43";
+const BUILD_DATE = "2026-03-06 09:47";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -1843,14 +1843,18 @@ function checkAchievements() {
 }
 
 function renderBadgeGallery() {
-  els.badgeGallery.innerHTML = "";
-  for (const def of ACHIEVEMENT_DEFS) {
-    const unlocked = state.achievements.includes(def.id);
-    const tile = document.createElement("div");
-    tile.className = "badge-tile" + (unlocked ? "" : " locked");
-    tile.title = def.desc;
-    tile.innerHTML = '<span class="badge-icon">' + def.icon + '</span><span class="badge-name">' + escapeHtml(def.name) + '</span>';
-    els.badgeGallery.appendChild(tile);
+  const containers = [els.badgeGallery, document.getElementById('homeBadgeGallery')];
+  for (const container of containers) {
+    if (!container) continue;
+    container.innerHTML = "";
+    for (const def of ACHIEVEMENT_DEFS) {
+      const unlocked = state.achievements.includes(def.id);
+      const tile = document.createElement("div");
+      tile.className = "badge-tile" + (unlocked ? "" : " locked");
+      tile.title = def.desc;
+      tile.innerHTML = '<span class="badge-icon">' + def.icon + '</span><span class="badge-name">' + escapeHtml(def.name) + '</span>';
+      container.appendChild(tile);
+    }
   }
 }
 
