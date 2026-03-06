@@ -19,6 +19,7 @@ const BASE_SNAKE_MS = 190;
 const SNAKE_LEVEL_SPEEDS = [190,165,143,124,108,95,84,75,68,62,57,53,50,47,45];
 const TETRIS_HIGHSCORE_KEY = "word_galaxy_tetris_highscore";
 const SNAKE_HIGHSCORE_KEY = "word_galaxy_snake_highscore";
+const ERROR_HISTORY_KEY = "word_galaxy_error_history";
 
 const MOORHUHN_PLAYS_STORAGE_KEY = "word_galaxy_moorhuhn_plays";
 const MOORHUHN_HIGHSCORE_KEY = "word_galaxy_moorhuhn_highscore";
@@ -662,6 +663,10 @@ function scoreVoice(voice) {
   else if (/deutsch|german/i.test(voice.name)) score += 3;
   else return 0; // not a German voice at all
 
+  // Known Windows German voices (Microsoft Katja, Hedda, Stefan, etc.)
+  if (/\b(katja|hedda|stefan|vicki|anna)\b/i.test(name)) score += 15;
+  // Known macOS German voices (Petra, Yannick, Markus)
+  if (/\b(petra|yannick|markus)\b/i.test(name)) score += 15;
   // Strongly prefer high-quality cloud / neural voices (available in Chrome & Edge on Windows)
   if (/natural|neural|online|wavenet|enhanced/i.test(name)) score += 100;
   // Slightly prefer remote voices (often higher quality than local)
@@ -681,11 +686,24 @@ function setupSpeechVoices() {
       .filter((e) => e.score > 0)
       .sort((a, b) => b.score - a.score);
     state.germanVoice = scored.length > 0 ? scored[0].voice : null;
+    if (state.germanVoice) {
+      console.log("[TTS] Deutsche Stimme gefunden:", state.germanVoice.name, "(Score:", scored[0].score + ")");
+    }
   };
 
   assignVoice();
   if (window.speechSynthesis.addEventListener) {
     window.speechSynthesis.addEventListener("voiceschanged", assignVoice);
+  }
+
+  // On Windows, voices may load slowly — retry a few times if empty
+  if (!state.germanVoice) {
+    let retries = 0;
+    const retryInterval = setInterval(() => {
+      assignVoice();
+      retries += 1;
+      if (state.germanVoice || retries >= 5) clearInterval(retryInterval);
+    }, 100);
   }
 }
 
@@ -857,6 +875,86 @@ function modeNounPlural() {
   return isMathMode() ? "Aufgaben" : "Wörter";
 }
 
+// ─── Error History / Spaced Repetition ───
+
+function loadErrorHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(ERROR_HISTORY_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveErrorHistory(history) {
+  localStorage.setItem(ERROR_HISTORY_KEY, JSON.stringify(history));
+}
+
+function recordResult(itemKey, correct) {
+  const history = loadErrorHistory();
+  const entry = history[itemKey] || { errors: 0, lastSeen: 0 };
+  if (correct) {
+    entry.errors = Math.max(0, entry.errors - 1);
+  } else {
+    entry.errors += 1;
+  }
+  entry.lastSeen = Date.now();
+  history[itemKey] = entry;
+  saveErrorHistory(history);
+}
+
+function weightedSelect(pool, count, getKey) {
+  if (pool.length <= count) return shuffle(pool.slice());
+
+  const history = loadErrorHistory();
+  const size = Math.min(count, pool.length);
+  const errorSlots = Math.floor(size * 0.5);
+
+  // Sort items with errors by error count descending
+  const withErrors = pool
+    .map((item, idx) => ({ item, idx, errors: (history[getKey(item)] || {}).errors || 0 }))
+    .filter((e) => e.errors > 0)
+    .sort((a, b) => b.errors - a.errors);
+
+  const selected = [];
+  const usedIndices = new Set();
+
+  // Fill up to 50% of slots with high-error items
+  for (let i = 0; i < Math.min(errorSlots, withErrors.length); i += 1) {
+    selected.push(withErrors[i].item);
+    usedIndices.add(withErrors[i].idx);
+  }
+
+  // Fill remaining slots with weighted random from the rest
+  const remaining = pool
+    .map((item, idx) => ({ item, idx }))
+    .filter((e) => !usedIndices.has(e.idx));
+
+  const weights = remaining.map((e) => {
+    const errors = (history[getKey(e.item)] || {}).errors || 0;
+    return 1 + errors * 2;
+  });
+
+  const slotsLeft = size - selected.length;
+
+  for (let i = 0; i < slotsLeft && remaining.length > 0; i += 1) {
+    const tw = weights.reduce((sum, w) => sum + w, 0);
+    let r = Math.random() * tw;
+    let picked = remaining.length - 1;
+    for (let j = 0; j < remaining.length; j += 1) {
+      r -= weights[j];
+      if (r <= 0) {
+        picked = j;
+        break;
+      }
+    }
+    selected.push(remaining[picked].item);
+    remaining.splice(picked, 1);
+    weights.splice(picked, 1);
+  }
+
+  return shuffle(selected);
+}
+
 // ─── Quiz ───
 
 function startQuiz() {
@@ -883,9 +981,9 @@ function startWordQuiz() {
     return;
   }
 
-  const shuffled = shuffle(pool.slice());
-  const setSize = Math.min(requestedSize, shuffled.length);
-  state.quizItems = shuffled.slice(0, setSize).map((word) => ({
+  const setSize = Math.min(requestedSize, pool.length);
+  const selected = weightedSelect(pool, setSize, (w) => w);
+  state.quizItems = selected.map((word) => ({
     type: "word",
     prompt: word,
     answer: word,
@@ -947,13 +1045,7 @@ function buildMathTasks(tables, count) {
     }
   }
   if (!pool.length) return [];
-  const shuffled = shuffle(pool.slice());
-  const tasks = [];
-  for (let i = 0; i < count; i += 1) {
-    const next = shuffled[i] ?? pool[Math.floor(Math.random() * pool.length)];
-    tasks.push(next);
-  }
-  return tasks;
+  return weightedSelect(pool, count, (task) => task.a + "x" + task.b);
 }
 
 function getWordPool(letterGroups) {
@@ -1060,11 +1152,15 @@ function findGermanVoiceNow() {
 function speakWordViaSynthesis(word) {
   if (!("speechSynthesis" in window)) return;
   findGermanVoiceNow();
-  console.log("[TTS] Verwende Speech Synthesis:", state.germanVoice ? state.germanVoice.name : "(Browser-Standard de-DE)");
+  if (!state.germanVoice) {
+    console.warn("[TTS] Keine deutsche Stimme gefunden – Speech Synthesis übersprungen (würde englischen Akzent verwenden)");
+    return;
+  }
+  console.log("[TTS] Verwende Speech Synthesis:", state.germanVoice.name);
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = "de-DE";
-  if (state.germanVoice) utterance.voice = state.germanVoice;
+  utterance.voice = state.germanVoice;
   utterance.rate = SPEECH_RATE;
   utterance.pitch = 1.02;
   window.speechSynthesis.speak(utterance);
@@ -1127,6 +1223,7 @@ function submitCurrentAnswer() {
       caseOnlyError: false,
       prompt: currentItem.prompt,
     });
+    recordResult(currentItem.prompt.replace(/ x /g, "x"), correct);
   } else {
     const userInput = normalizeDoubleS(rawInput);
     const target = currentItem.answer;
@@ -1141,6 +1238,7 @@ function submitCurrentAnswer() {
       caseOnlyError,
       prompt: currentItem.prompt,
     });
+    recordResult(target, correct);
   }
 
   state.currentIndex += 1;
