@@ -10,6 +10,104 @@
   --shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
 }
 
+.dark-mode {
+  --bg-1: #1e1b4b;
+  --bg-2: #0f172a;
+  --card: rgba(30, 27, 75, 0.85);
+  --ink: #e2e8f0;
+  --accent: #14b8a6;
+  --accent-2: #fb923c;
+  --success: #4ade80;
+  --error: #fb7185;
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode body,
+body.dark-mode {
+  background: radial-gradient(circle at 15% 10%, #1e1b4b 0%, transparent 30%),
+    radial-gradient(circle at 80% 20%, #0f172a 0%, transparent 35%),
+    linear-gradient(120deg, #1e1b4b, #0f172a);
+  color: var(--ink);
+}
+
+.dark-mode .card {
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.dark-mode select,
+.dark-mode input {
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+.dark-mode .eyebrow,
+.dark-mode .subtitle,
+.dark-mode .small-note {
+  color: #94a3b8;
+}
+
+.dark-mode .letter-group-picker {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+.dark-mode .lg-pill {
+  background: #1e293b;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+.dark-mode .lg-pill:hover {
+  background: #0f3a33;
+  border-color: #14b8a6;
+  color: #5eead4;
+}
+
+.dark-mode .progress-track {
+  background: #1e293b;
+}
+
+.dark-mode .task-display {
+  background: #2d1a0e;
+  border-color: #92400e;
+  color: #fbbf24;
+}
+
+.dark-mode .result-highlight {
+  background: linear-gradient(140deg, #064e3b, #1e1b4b);
+}
+
+.dark-mode .mistake-item {
+  background: #2d1a0e;
+  border-color: #92400e;
+}
+
+.dark-mode .mistake-item.corrected {
+  background: #064e3b;
+  border-color: #16a34a;
+}
+
+.dark-toggle {
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+
+.dark-toggle:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -374,6 +472,20 @@ select:focus {
 
 .hidden {
   display: none !important;
+}
+
+.panel {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.panel-enter {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.panel-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .result-highlight {

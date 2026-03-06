@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 08:20";
+const BUILD_DATE = "2026-03-06 08:21";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -20,6 +20,7 @@ const SNAKE_LEVEL_SPEEDS = [190,165,143,124,108,95,84,75,68,62,57,53,50,47,45];
 const TETRIS_HIGHSCORE_KEY = "word_galaxy_tetris_highscore";
 const SNAKE_HIGHSCORE_KEY = "word_galaxy_snake_highscore";
 const ERROR_HISTORY_KEY = "word_galaxy_error_history";
+const DARK_MODE_KEY = "word_galaxy_dark_mode";
 
 const MOORHUHN_PLAYS_STORAGE_KEY = "word_galaxy_moorhuhn_plays";
 const MOORHUHN_HIGHSCORE_KEY = "word_galaxy_moorhuhn_highscore";
@@ -285,6 +286,7 @@ const els = {
   correctionFeedback: document.getElementById("correctionFeedback"),
   playAgainBtn: document.getElementById("playAgainBtn"),
   coinCount: document.getElementById("coinCount"),
+  darkToggle: document.getElementById("darkToggle"),
   buyTetrisPlaysBtn: document.getElementById("buyTetrisPlaysBtn"),
   openTetrisBtn: document.getElementById("openTetrisBtn"),
   tetrisPlays: document.getElementById("tetrisPlays"),
@@ -367,6 +369,7 @@ async function initialize() {
   state.moorhuhnPlays = loadMoorhuhnPlays();
   state.moorhuhnHighscore = loadMoorhuhnHighscore();
   updateCoinDisplay();
+  applyDarkMode(loadDarkMode());
   updateTetrisPlayDisplay();
   updateSnakePlaysDisplay();
   updateMoorhuhnPlaysDisplay();
@@ -412,6 +415,10 @@ async function initialize() {
 
 function bindEvents() {
   els.startBtn.addEventListener("click", startQuiz);
+  els.darkToggle.addEventListener("click", () => {
+    const isDark = document.body.classList.contains("dark-mode");
+    applyDarkMode(!isDark);
+  });
   els.modeSelect.addEventListener("change", () => {
     state.quizMode = els.modeSelect.value;
     applyModeUI();
@@ -1479,9 +1486,23 @@ function resetToSetup() {
 }
 
 function setPanelVisibility({ setup, quiz, result }) {
-  els.setupPanel.classList.toggle("hidden", !setup);
-  els.quizPanel.classList.toggle("hidden", !quiz);
-  els.resultPanel.classList.toggle("hidden", !result);
+  const panels = [
+    { el: els.setupPanel, show: setup },
+    { el: els.quizPanel, show: quiz },
+    { el: els.resultPanel, show: result },
+  ];
+  for (const { el, show } of panels) {
+    if (show) {
+      el.classList.remove("hidden");
+      el.classList.add("panel-enter");
+      void el.offsetHeight;
+      el.classList.add("panel-visible");
+      el.classList.remove("panel-enter");
+    } else {
+      el.classList.remove("panel-visible");
+      el.classList.add("hidden");
+    }
+  }
 }
 
 // ─── Coins & plays ───
@@ -1502,6 +1523,16 @@ function updateCoinDisplay() {
   els.tetrisCoins.textContent = `Münzen: ${state.coins}`;
   els.snakeCoins.textContent = `Münzen: ${state.coins}`;
   els.moorhuhnCoins.textContent = `Münzen: ${state.coins}`;
+}
+
+function loadDarkMode() {
+  return window.localStorage.getItem(DARK_MODE_KEY) === "true";
+}
+
+function applyDarkMode(dark) {
+  document.body.classList.toggle("dark-mode", dark);
+  els.darkToggle.textContent = dark ? "\uD83C\uDF19" : "\u2600\uFE0F";
+  window.localStorage.setItem(DARK_MODE_KEY, String(dark));
 }
 
 function loadTetrisPlays() {
