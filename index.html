@@ -22,6 +22,7 @@
             Höre genau zu, tippe das Wort und sammle Münzen für Bonus-Spiele.
           </p>
         </div>
+        <div class="streak-badge" id="streakBadge">\u{1F525} <strong id="streakCount">0</strong> Tage</div>
         <div class="coin-badge" id="coinBadge">Münzen: <strong id="coinCount">0</strong></div>
       </header>
 
@@ -114,6 +115,30 @@
             <p id="correctionFeedback" class="feedback"></p>
           </div>
           <button id="playAgainBtn" class="btn secondary">Neues Set spielen</button>
+        </section>
+
+        <section class="card panel stats-card" id="statsPanel">
+          <h2>Statistiken</h2>
+          <div class="stats-grid">
+            <div class="stat-tile">
+              <span class="stat-value" id="statTotalPracticed">0</span>
+              <span class="stat-label">Geuebt</span>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-value" id="statAccuracy">0%</span>
+              <span class="stat-label">Genauigkeit</span>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-value" id="statCurrentStreak">\u{1F525} 0</span>
+              <span class="stat-label">Aktuelle Serie</span>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-value" id="statBestStreak">\u{2B50} 0</span>
+              <span class="stat-label">Beste Serie</span>
+            </div>
+          </div>
+          <h3>Abzeichen</h3>
+          <div class="badge-gallery" id="badgeGallery"></div>
         </section>
 
         <section class="card panel arcade-card" id="miniGamePanel">
@@ -323,6 +348,8 @@
       </div>
       <p id="moorhuhnModalFeedback" class="feedback mh-feedback"></p>
     </div>
+
+    <div class="toast-container" id="toastContainer"></div>
 
     <script src="app.js"></script>
   </body>
