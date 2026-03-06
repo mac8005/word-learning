@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:09";
+const BUILD_DATE = "2026-03-06 09:10";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -448,6 +448,11 @@ async function initialize() {
 
 function bindEvents() {
   document.getElementById('goToSetupBtn').addEventListener('click', () => navigateTo('setup'));
+  document.getElementById('bottomNav').addEventListener('click', (e) => {
+    const item = e.target.closest('.nav-item');
+    if (!item) return;
+    navigateTo(item.dataset.nav);
+  });
   els.startBtn.addEventListener("click", startQuiz);
   els.darkToggle.addEventListener("click", () => {
     const isLight = document.body.classList.contains("light-mode");
@@ -1561,6 +1566,14 @@ function navigateTo(viewName) {
 
   state.currentView = viewName;
   window.scrollTo({ top: 0 });
+
+  // Sync bottom nav active state
+  for (const btn of document.querySelectorAll('.nav-item')) {
+    btn.classList.toggle('active', btn.dataset.nav === viewName);
+  }
+  // Hide nav during quiz and result views
+  const nav = document.getElementById('bottomNav');
+  if (nav) nav.classList.toggle('hidden', viewName === 'quiz' || viewName === 'result');
 
   if (current) {
     current.classList.add('view-exit');
