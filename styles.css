@@ -429,6 +429,107 @@ body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   z-index: 1;
 }
 
+/* ── Immersive quiz view ── */
+.view[data-view="quiz"] {
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.view[data-view="quiz"] .panel {
+  width: 100%;
+  max-width: 600px;
+  padding: 2.5rem 2rem;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.view[data-view="quiz"] .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, var(--accent-glow), transparent 60%);
+  pointer-events: none;
+}
+
+.view[data-view="quiz"] .letter-slots {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: 3rem;
+}
+
+.view[data-view="quiz"] .slot {
+  width: 2.2rem;
+  height: 2.8rem;
+  border-radius: 0.5rem;
+  background: var(--bg-surface);
+  border: 2px solid var(--card-border);
+  transition: all 0.2s ease;
+}
+
+.view[data-view="quiz"] .slot.filled {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.05);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.view[data-view="quiz"] .slot.correct-slot {
+  background: var(--success);
+  border-color: var(--success);
+  box-shadow: 0 0 12px var(--success-glow);
+  animation: slotPop 0.3s ease;
+}
+
+.view[data-view="quiz"] .slot.wrong-slot {
+  background: var(--error);
+  border-color: var(--error);
+  box-shadow: 0 0 12px var(--error-glow);
+  animation: slotShake 0.4s ease;
+}
+
+@keyframes slotPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1.05); }
+}
+
+@keyframes slotShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+.view[data-view="quiz"] #wordInput {
+  font-size: 1.5rem;
+  text-align: center;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Mini confetti burst */
+.mini-confetti {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  animation: miniConfettiBurst 0.6s ease-out forwards;
+}
+
+@keyframes miniConfettiBurst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+}
+
 /* ─── Glass card ─── */
 
 .card {

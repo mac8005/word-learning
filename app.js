@@ -1315,6 +1315,7 @@ function submitCurrentAnswer() {
   const lastAnswer = state.answers[state.answers.length - 1];
   if (lastAnswer) {
     playSfx(lastAnswer.correct ? "quizCorrect" : "quizWrong");
+    if (lastAnswer.correct) spawnMiniCelebration(els.wordInput);
   }
 
   if (lastAnswer && !lastAnswer.correct) {
@@ -5067,6 +5068,24 @@ function setupMoorhuhnEventListeners() {
 }
 
 // ─── Utilities ───
+
+function spawnMiniCelebration(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top;
+  const colors = ['#69f0ae', '#ffd740', '#18ffff', '#7c4dff'];
+  for (let i = 0; i < 12; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'mini-confetti';
+    dot.style.left = cx + 'px';
+    dot.style.top = cy + 'px';
+    dot.style.background = colors[i % colors.length];
+    dot.style.setProperty('--dx', (Math.random() - 0.5) * 120 + 'px');
+    dot.style.setProperty('--dy', -(Math.random() * 80 + 30) + 'px');
+    document.body.appendChild(dot);
+    setTimeout(() => dot.remove(), 700);
+  }
+}
 
 function spawnCelebration() {
   const colors = ["#22c55e", "#eab308", "#f97316", "#3b82f6", "#ef4444"];
