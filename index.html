@@ -14,17 +14,13 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="hero card">
-        <div>
-          <p class="eyebrow">Lernspiel</p>
-          <h1>Galaxie Trainer</h1>
-          <p class="subtitle">
-            Übe Wörter und Mathe, sammle Münzen und spiele Bonus-Spiele.
-          </p>
+      <header class="top-bar hidden" id="topBar">
+        <span class="top-bar-title">Galaxie Trainer</span>
+        <div class="top-bar-badges">
+          <div class="streak-badge" id="streakBadge">&#x1F525; <strong id="streakCount">0</strong> Tage</div>
+          <div class="coin-badge" id="coinBadge">&#x1FA99; <strong id="coinCount">0</strong></div>
+          <button class="dark-toggle" id="darkToggle" aria-label="Dunkelmodus umschalten">&#x2600;&#xFE0F;</button>
         </div>
-        <div class="streak-badge" id="streakBadge">🔥 <strong id="streakCount">0</strong> Tage</div>
-        <div class="coin-badge" id="coinBadge">Münzen: <strong id="coinCount">0</strong></div>
-        <button class="dark-toggle" id="darkToggle" aria-label="Dunkelmodus umschalten">☀️</button>
       </header>
 
       <main class="views-container">

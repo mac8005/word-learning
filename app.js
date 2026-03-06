@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:15";
+const BUILD_DATE = "2026-03-06 09:16";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -1654,6 +1654,9 @@ function navigateTo(viewName) {
   // Hide nav during quiz and result views
   const nav = document.getElementById('bottomNav');
   if (nav) nav.classList.toggle('hidden', viewName === 'quiz' || viewName === 'result');
+  // Hide top bar on home/quiz/result views
+  const topBar = document.getElementById('topBar');
+  if (topBar) topBar.classList.toggle('hidden', viewName === 'home' || viewName === 'quiz' || viewName === 'result');
 
   if (current) {
     current.classList.add('view-exit');
