@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:17";
+const BUILD_DATE = "2026-03-06 09:19";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -1044,7 +1044,7 @@ function startWordQuiz() {
   state.quizActive = true;
   state.correctionBonusGiven = false;
 
-  setPanelVisibility({ setup: false, quiz: true, result: false });
+  navigateTo("quiz");
   renderCurrentQuizState();
   speakCurrentItem();
 }
@@ -1081,7 +1081,7 @@ function startMathQuiz() {
   state.quizActive = true;
   state.correctionBonusGiven = false;
 
-  setPanelVisibility({ setup: false, quiz: true, result: false });
+  navigateTo("quiz");
   renderCurrentQuizState();
   speakCurrentItem();
 }
@@ -1368,7 +1368,7 @@ function finishQuiz() {
   if (earnedCoins > 0) spawnCoinAnimation(earnedCoins);
 
   renderMistakes();
-  setPanelVisibility({ setup: false, quiz: false, result: true });
+  navigateTo("result");
 
   if (percent === 100) {
     spawnCelebration();
@@ -1564,7 +1564,7 @@ function checkCorrections() {
 
 function resetToSetup() {
   state.quizActive = false;
-  setPanelVisibility({ setup: true, quiz: false, result: false });
+  navigateTo("setup");
   applyModeUI();
   setSetupFeedback();
 }
@@ -1678,12 +1678,6 @@ function navigateTo(viewName) {
     updateSnakePlaysDisplay();
     updateMoorhuhnPlaysDisplay();
   }
-}
-
-function setPanelVisibility({ setup, quiz, result }) {
-  if (quiz) navigateTo("quiz");
-  else if (result) navigateTo("result");
-  else if (setup) navigateTo("setup");
 }
 
 // ─── Coins & plays ───

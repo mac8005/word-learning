@@ -1120,17 +1120,7 @@ select option {
   box-shadow: 0 8px 30px var(--success-glow);
 }
 
-/* ─── Stats card ─── */
-
-.stats-card {
-  background: rgba(105, 240, 174, 0.04);
-  border-color: rgba(105, 240, 174, 0.15);
-}
-
-.stats-card:hover {
-  border-color: rgba(105, 240, 174, 0.3);
-  box-shadow: var(--shadow-md), 0 0 30px rgba(105, 240, 174, 0.06);
-}
+/* ─── Stats grid ─── */
 
 .stats-grid {
   display: grid;
@@ -2076,11 +2066,6 @@ body.light-mode .mistake-item {
 body.light-mode .mistake-item.corrected {
   background: rgba(0, 200, 83, 0.06);
   border-color: rgba(0, 200, 83, 0.2);
-}
-
-body.light-mode .stats-card {
-  background: rgba(0, 200, 83, 0.04);
-  border-color: rgba(0, 200, 83, 0.12);
 }
 
 body.light-mode .stat-tile {
