@@ -248,15 +248,6 @@ h3 {
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
-/* ─── Main layout grid ─── */
-
-.layout {
-  margin-top: 1rem;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(300px, 1fr));
-  gap: 1rem;
-}
-
 /* ── View system ── */
 .views-container {
   position: relative;
@@ -2149,11 +2140,46 @@ body.light-mode .badge-tile:not(.locked) {
   box-shadow: 0 0 8px rgba(98, 0, 234, 0.06);
 }
 
+body.light-mode .bottom-nav {
+  background: rgba(255, 255, 255, 0.92);
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-mode .nav-item {
+  color: var(--ink-dim);
+}
+
+body.light-mode .nav-item:hover,
+body.light-mode .nav-item.active {
+  color: var(--accent);
+}
+
+body.light-mode .result-score-circle::before {
+  background: #f5f3ff;
+}
+
+body.light-mode .home-subtitle {
+  color: var(--ink-muted);
+}
+
+body.light-mode .game-card-desc {
+  color: var(--ink-muted);
+}
+
 /* ─── Responsive ─── */
 
 @media (max-width: 860px) {
   .quiz-controls { grid-template-columns: 1fr; }
   .arcade-grid { grid-template-columns: 1fr; }
+  .home-stats-row { gap: 1rem; }
+}
+
+@media (max-width: 400px) {
+  .home-stats-row { flex-wrap: wrap; justify-content: center; }
+  .view { padding: 1rem; }
+  .game-card { padding: 1.2rem; }
+  .top-bar-badges { gap: 0.4rem; }
+  .streak-badge, .coin-badge { font-size: 0.75rem; padding: 0.35rem 0.6rem; }
 }
 
 @media (hover: none) and (pointer: coarse) {
