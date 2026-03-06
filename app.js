@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 08:22";
+const BUILD_DATE = "2026-03-06 09:52";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -27,14 +27,14 @@ const ACHIEVEMENTS_KEY = "word_galaxy_achievements";
 
 const ACHIEVEMENT_DEFS = [
   { id: "first_perfect", icon: "\u{1F31F}", name: "Perfektionist", desc: "Erste fehlerfreie Mission", check: (s) => s._lastPerfect },
-  { id: "words_50", icon: "\u{1F4DA}", name: "Buecherwurm", desc: "50 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 50 },
-  { id: "words_100", icon: "\u{1F393}", name: "Wort-Meister", desc: "100 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 100 },
-  { id: "words_500", icon: "\u{1F3C6}", name: "Wort-Champion", desc: "500 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 500 },
+  { id: "words_50", icon: "\u{1F4DA}", name: "Buecherwurm", desc: "50 Aufgaben geuebt", check: (s) => s.stats.totalPracticed >= 50 },
+  { id: "words_100", icon: "\u{1F393}", name: "Galaxie-Meister", desc: "100 Aufgaben geuebt", check: (s) => s.stats.totalPracticed >= 100 },
+  { id: "words_500", icon: "\u{1F3C6}", name: "Galaxie-Champion", desc: "500 Aufgaben geuebt", check: (s) => s.stats.totalPracticed >= 500 },
   { id: "streak_3", icon: "\u{1F525}", name: "Fleissig", desc: "3 Tage am Stueck geuebt", check: (s) => s.streak.current >= 3 },
   { id: "streak_7", icon: "\u{1F4AA}", name: "Unaufhaltsam", desc: "7 Tage am Stueck geuebt", check: (s) => s.streak.current >= 7 },
   { id: "coins_50", icon: "\u{1F4B0}", name: "Sparschwein", desc: "50 Muenzen gesammelt", check: (s) => s.coins >= 50 },
   { id: "coins_200", icon: "\u{1F3E6}", name: "Bankier", desc: "200 Muenzen insgesamt", check: (s) => s.coins >= 200 },
-  { id: "accuracy_90", icon: "\u{1F3AF}", name: "Scharfschuetze", desc: "90% Genauigkeit (mind. 20 Woerter)", check: (s) => s.stats.totalPracticed >= 20 && (s.stats.totalCorrect / s.stats.totalPracticed) >= 0.9 },
+  { id: "accuracy_90", icon: "\u{1F3AF}", name: "Scharfschuetze", desc: "90% Genauigkeit (mind. 20 Aufgaben)", check: (s) => s.stats.totalPracticed >= 20 && (s.stats.totalCorrect / s.stats.totalPracticed) >= 0.9 },
 ];
 
 const MOORHUHN_PLAYS_STORAGE_KEY = "word_galaxy_moorhuhn_plays";
@@ -195,6 +195,7 @@ const state = {
   _lastPerfect: false,
   germanVoice: null,
   audioCtx: null,
+  currentView: "home",
   savedScrollY: 0,
   tetris: {
     active: false,
@@ -399,7 +400,7 @@ async function initialize() {
   state.streak = loadStreak();
   state.achievements = loadAchievements();
   updateCoinDisplay();
-  applyDarkMode(loadDarkMode());
+  applyTheme(loadLightMode());
   updateTetrisPlayDisplay();
   updateSnakePlaysDisplay();
   updateMoorhuhnPlaysDisplay();
@@ -410,6 +411,7 @@ async function initialize() {
   updateSnakeStats();
   updateMoorhuhnStats();
   updateStatsDisplay();
+  updateStatsViewDisplay();
   renderBadgeGallery();
   bindEvents();
   setupSnakeEventListeners();
@@ -443,13 +445,22 @@ async function initialize() {
       "bad"
     );
   }
+
+  initStarfield();
+  updateHomeStats();
 }
 
 function bindEvents() {
+  document.getElementById('goToSetupBtn').addEventListener('click', () => navigateTo('setup'));
+  document.getElementById('bottomNav').addEventListener('click', (e) => {
+    const item = e.target.closest('.nav-item');
+    if (!item) return;
+    navigateTo(item.dataset.nav);
+  });
   els.startBtn.addEventListener("click", startQuiz);
   els.darkToggle.addEventListener("click", () => {
-    const isDark = document.body.classList.contains("dark-mode");
-    applyDarkMode(!isDark);
+    const isLight = document.body.classList.contains("light-mode");
+    applyTheme(!isLight);
   });
   els.modeSelect.addEventListener("change", () => {
     state.quizMode = els.modeSelect.value;
@@ -1034,7 +1045,7 @@ function startWordQuiz() {
   state.quizActive = true;
   state.correctionBonusGiven = false;
 
-  setPanelVisibility({ setup: false, quiz: true, result: false });
+  navigateTo("quiz");
   renderCurrentQuizState();
   speakCurrentItem();
 }
@@ -1071,7 +1082,7 @@ function startMathQuiz() {
   state.quizActive = true;
   state.correctionBonusGiven = false;
 
-  setPanelVisibility({ setup: false, quiz: true, result: false });
+  navigateTo("quiz");
   renderCurrentQuizState();
   speakCurrentItem();
 }
@@ -1115,12 +1126,23 @@ function renderCurrentQuizState() {
     els.taskDisplay.classList.add("hidden");
     els.letterSlots.classList.remove("hidden");
     els.letterSlots.innerHTML = "";
+    let slotIndex = 0;
     for (const char of currentItem.answer) {
       if (char === " ") continue;
       const bubble = document.createElement("span");
       bubble.className = "slot";
+      bubble.style.opacity = "0";
+      bubble.style.transform = "scale(0.5)";
+      bubble.style.transition = `all 0.2s ease ${slotIndex * 0.03}s`;
       els.letterSlots.appendChild(bubble);
+      slotIndex++;
     }
+    requestAnimationFrame(() => {
+      for (const slot of els.letterSlots.querySelectorAll(".slot")) {
+        slot.style.opacity = "1";
+        slot.style.transform = "scale(1)";
+      }
+    });
   }
 
   els.wordInput.value = "";
@@ -1294,6 +1316,7 @@ function submitCurrentAnswer() {
   const lastAnswer = state.answers[state.answers.length - 1];
   if (lastAnswer) {
     playSfx(lastAnswer.correct ? "quizCorrect" : "quizWrong");
+    if (lastAnswer.correct) spawnMiniCelebration(els.wordInput);
   }
 
   if (lastAnswer && !lastAnswer.correct) {
@@ -1336,10 +1359,23 @@ function finishQuiz() {
   els.coinRewardLine.textContent = `+${earnedCoins} Münzen erhalten`;
   els.progressFill.style.width = "100%";
 
-  renderMistakes();
-  setPanelVisibility({ setup: false, quiz: false, result: true });
+  // Animated score circle
+  const scoreCircle = document.getElementById('resultScoreCircle');
+  const scoreNumber = document.getElementById('resultScoreNumber');
+  if (scoreCircle) scoreCircle.style.setProperty('--pct', percent + '%');
+  if (scoreNumber) animateScoreCounter(scoreNumber, percent, 800);
 
-  if (percent >= 80) {
+  // Coin fly animation
+  if (earnedCoins > 0) spawnCoinAnimation(earnedCoins);
+
+  renderMistakes();
+  navigateTo("result");
+
+  if (percent === 100) {
+    spawnCelebration();
+    setTimeout(() => spawnCelebration(), 300);
+    setTimeout(() => spawnCelebration(), 600);
+  } else if (percent >= 80) {
     spawnCelebration();
   }
 }
@@ -1507,38 +1543,149 @@ function checkCorrections() {
     const bonus = 2;
     addCoins(bonus);
     state.correctionBonusGiven = true;
-    setFeedback(els.correctionFeedback, `Alles korrigiert! +${bonus} Bonus-Münzen.`, "ok");
     spawnCelebration();
-    return;
+    playSfx("quizCorrect");
   }
 
-  setFeedback(els.correctionFeedback, "Alle Korrekturen sind schon erledigt.", "ok");
+  // Collapse correction section and show success
+  const block = els.mistakesBlock;
+  block.style.maxHeight = block.scrollHeight + "px";
+  block.style.transition = "max-height 0.4s ease, opacity 0.3s ease";
+  requestAnimationFrame(() => {
+    block.style.maxHeight = "0";
+    block.style.opacity = "0";
+    block.style.overflow = "hidden";
+  });
+  setTimeout(() => {
+    block.innerHTML = '<div class="correction-success">Alle Korrekturen erledigt! +2 Bonus-Muenzen</div>';
+    block.style.maxHeight = "none";
+    block.style.opacity = "1";
+  }, 400);
 }
 
 function resetToSetup() {
   state.quizActive = false;
-  setPanelVisibility({ setup: true, quiz: false, result: false });
+  navigateTo("setup");
   applyModeUI();
   setSetupFeedback();
 }
 
-function setPanelVisibility({ setup, quiz, result }) {
-  const panels = [
-    { el: els.setupPanel, show: setup },
-    { el: els.quizPanel, show: quiz },
-    { el: els.resultPanel, show: result },
-  ];
-  for (const { el, show } of panels) {
-    if (show) {
-      el.classList.remove("hidden");
-      el.classList.add("panel-enter");
-      void el.offsetHeight;
-      el.classList.add("panel-visible");
-      el.classList.remove("panel-enter");
-    } else {
-      el.classList.remove("panel-visible");
-      el.classList.add("hidden");
+// ─── Starfield & Home Stats ───
+
+function initStarfield() {
+  const container = document.getElementById('starfieldCanvas');
+  if (!container) return;
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'width:100%;height:100%;display:block;';
+  container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  const stars = [];
+  const STAR_COUNT = 120;
+
+  function resize() {
+    canvas.width = container.offsetWidth * devicePixelRatio;
+    canvas.height = container.offsetHeight * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: Math.random() * container.offsetWidth,
+      y: Math.random() * container.offsetHeight,
+      r: Math.random() * 1.5 + 0.3,
+      speed: Math.random() * 0.3 + 0.05,
+      alpha: Math.random() * 0.6 + 0.4,
+      twinkleSpeed: Math.random() * 0.02 + 0.005,
+      twinklePhase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  let frame = 0;
+  function draw() {
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    ctx.clearRect(0, 0, w, h);
+    for (const s of stars) {
+      s.y -= s.speed;
+      if (s.y < -2) { s.y = h + 2; s.x = Math.random() * w; }
+      const alpha = s.alpha * (0.6 + 0.4 * Math.sin(frame * s.twinkleSpeed + s.twinklePhase));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fill();
     }
+    frame++;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function updateHomeStats() {
+  const streak = document.getElementById('homeStreak');
+  const coins = document.getElementById('homeCoins');
+  const accuracy = document.getElementById('homeAccuracy');
+  if (streak) streak.innerHTML = `<strong>\u{1F525} ${state.streak.current}</strong>Tage-Serie`;
+  if (coins) coins.innerHTML = `<strong>\u{1F4B0} ${state.coins}</strong>Münzen`;
+  const pct = state.stats.totalPracticed > 0
+    ? Math.round(state.stats.totalCorrect / state.stats.totalPracticed * 100)
+    : 0;
+  if (accuracy) accuracy.innerHTML = `<strong>\u{1F3AF} ${pct}%</strong>Genauigkeit`;
+}
+
+// ─── View Router ───
+
+const VIEWS = ["home", "setup", "quiz", "result", "stats", "arcade"];
+
+function navigateTo(viewName) {
+  if (!VIEWS.includes(viewName)) return;
+  const current = document.querySelector('.view.view-active');
+  const next = document.querySelector(`.view[data-view="${viewName}"]`);
+  if (!next || next === current) return;
+
+  state.currentView = viewName;
+  window.scrollTo({ top: 0 });
+
+  // Sync bottom nav active state
+  for (const btn of document.querySelectorAll('.nav-item')) {
+    btn.classList.toggle('active', btn.dataset.nav === viewName);
+  }
+  // Hide nav during quiz and result views
+  const nav = document.getElementById('bottomNav');
+  if (nav) nav.classList.toggle('hidden', viewName === 'quiz' || viewName === 'result');
+  // Hide top bar on home/quiz/result views
+  const topBar = document.getElementById('topBar');
+  if (topBar) topBar.classList.toggle('hidden', viewName === 'home' || viewName === 'quiz' || viewName === 'result');
+
+  if (current) {
+    current.classList.add('view-exit');
+    current.addEventListener('animationend', () => {
+      current.classList.remove('view-active', 'view-exit');
+    }, { once: true });
+  }
+
+  next.classList.add('view-active', 'view-enter');
+  next.addEventListener('animationend', () => {
+    next.classList.remove('view-enter');
+  }, { once: true });
+
+  // Update view-specific displays
+  if (viewName === 'home') {
+    updateHomeStats();
+    updateStatsDisplay();
+    renderBadgeGallery();
+  }
+  if (viewName === 'stats') {
+    updateStatsViewDisplay();
+    renderBadgeGallery();
+  }
+  if (viewName === 'arcade') {
+    updateCoinDisplay();
+    updateTetrisPlayDisplay();
+    updateSnakePlaysDisplay();
+    updateMoorhuhnPlaysDisplay();
   }
 }
 
@@ -1562,14 +1709,15 @@ function updateCoinDisplay() {
   els.moorhuhnCoins.textContent = `Münzen: ${state.coins}`;
 }
 
-function loadDarkMode() {
-  return window.localStorage.getItem(DARK_MODE_KEY) === "true";
+function loadLightMode() {
+  return window.localStorage.getItem(DARK_MODE_KEY) === "light";
 }
 
-function applyDarkMode(dark) {
-  document.body.classList.toggle("dark-mode", dark);
-  els.darkToggle.textContent = dark ? "\uD83C\uDF19" : "\u2600\uFE0F";
-  window.localStorage.setItem(DARK_MODE_KEY, String(dark));
+function applyTheme(light) {
+  document.body.classList.toggle("light-mode", light);
+  document.body.classList.remove("dark-mode");
+  els.darkToggle.textContent = light ? "\uD83C\uDF19" : "\u2600\uFE0F";
+  window.localStorage.setItem(DARK_MODE_KEY, light ? "light" : "dark");
 }
 
 // ─── Stats & Streak ───
@@ -1634,6 +1782,22 @@ function updateStatsDisplay() {
   els.streakCount.textContent = String(state.streak.current);
 }
 
+function updateStatsViewDisplay() {
+  const s = state.stats;
+  const accuracy = s.totalPracticed > 0
+    ? Math.round((s.totalCorrect / s.totalPracticed) * 100)
+    : 0;
+  const el = (id) => document.getElementById(id);
+  const svtp = el('statViewTotalPracticed');
+  const sva = el('statViewAccuracy');
+  const svcs = el('statViewCurrentStreak');
+  const svbs = el('statViewBestStreak');
+  if (svtp) svtp.textContent = String(s.totalPracticed);
+  if (sva) sva.textContent = accuracy + "%";
+  if (svcs) svcs.textContent = "\u{1F525} " + state.streak.current;
+  if (svbs) svbs.textContent = "\u{2B50} " + state.streak.best;
+}
+
 function recordQuizStats(answers) {
   const correct = answers.filter((a) => a.correct).length;
   state.stats.totalPracticed += answers.length;
@@ -1679,14 +1843,18 @@ function checkAchievements() {
 }
 
 function renderBadgeGallery() {
-  els.badgeGallery.innerHTML = "";
-  for (const def of ACHIEVEMENT_DEFS) {
-    const unlocked = state.achievements.includes(def.id);
-    const tile = document.createElement("div");
-    tile.className = "badge-tile" + (unlocked ? "" : " locked");
-    tile.title = def.desc;
-    tile.innerHTML = '<span class="badge-icon">' + def.icon + '</span><span class="badge-name">' + escapeHtml(def.name) + '</span>';
-    els.badgeGallery.appendChild(tile);
+  const containers = [els.badgeGallery, document.getElementById('homeBadgeGallery')];
+  for (const container of containers) {
+    if (!container) continue;
+    container.innerHTML = "";
+    for (const def of ACHIEVEMENT_DEFS) {
+      const unlocked = state.achievements.includes(def.id);
+      const tile = document.createElement("div");
+      tile.className = "badge-tile" + (unlocked ? "" : " locked");
+      tile.title = def.desc;
+      tile.innerHTML = '<span class="badge-icon">' + def.icon + '</span><span class="badge-name">' + escapeHtml(def.name) + '</span>';
+      container.appendChild(tile);
+    }
   }
 }
 
@@ -4941,6 +5109,51 @@ function setupMoorhuhnEventListeners() {
 }
 
 // ─── Utilities ───
+
+function spawnMiniCelebration(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top;
+  const colors = ['#69f0ae', '#ffd740', '#18ffff', '#7c4dff'];
+  for (let i = 0; i < 12; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'mini-confetti';
+    dot.style.left = cx + 'px';
+    dot.style.top = cy + 'px';
+    dot.style.background = colors[i % colors.length];
+    dot.style.setProperty('--dx', (Math.random() - 0.5) * 120 + 'px');
+    dot.style.setProperty('--dy', -(Math.random() * 80 + 30) + 'px');
+    document.body.appendChild(dot);
+    setTimeout(() => dot.remove(), 700);
+  }
+}
+
+function animateScoreCounter(element, target, duration) {
+  const start = performance.now();
+  function tick(now) {
+    const elapsed = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - elapsed, 3);
+    element.textContent = Math.round(target * eased) + '%';
+    if (elapsed < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function spawnCoinAnimation(count) {
+  const target = document.getElementById('coinBadge');
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  for (let i = 0; i < Math.min(count, 10); i++) {
+    const coin = document.createElement('span');
+    coin.className = 'coin-fly';
+    coin.textContent = '\u{1FA99}';
+    coin.style.left = (rect.left + Math.random() * rect.width) + 'px';
+    coin.style.top = rect.top + 'px';
+    coin.style.animationDelay = (i * 0.1) + 's';
+    document.body.appendChild(coin);
+    setTimeout(() => coin.remove(), 1200);
+  }
+}
 
 function spawnCelebration() {
   const colors = ["#22c55e", "#eab308", "#f97316", "#3b82f6", "#ef4444"];

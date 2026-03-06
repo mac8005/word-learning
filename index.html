@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wort-Galaxie Trainer</title>
+    <title>Galaxie Trainer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,179 +14,249 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="hero card">
-        <div>
-          <p class="eyebrow">Lernspiel</p>
-          <h1>Wort-Galaxie Trainer</h1>
-          <p class="subtitle">
-            Höre genau zu, tippe das Wort und sammle Münzen für Bonus-Spiele.
-          </p>
+      <header class="top-bar hidden" id="topBar">
+        <span class="top-bar-title">Galaxie Trainer</span>
+        <div class="top-bar-badges">
+          <div class="streak-badge" id="streakBadge">&#x1F525; <strong id="streakCount">0</strong> Tage</div>
+          <div class="coin-badge" id="coinBadge">&#x1FA99; <strong id="coinCount">0</strong></div>
+          <button class="dark-toggle" id="darkToggle" aria-label="Dunkelmodus umschalten">&#x2600;&#xFE0F;</button>
         </div>
-        <div class="streak-badge" id="streakBadge">\u{1F525} <strong id="streakCount">0</strong> Tage</div>
-        <div class="coin-badge" id="coinBadge">Münzen: <strong id="coinCount">0</strong></div>
-        <button class="dark-toggle" id="darkToggle" aria-label="Dunkelmodus umschalten">☀️</button>
       </header>
 
-      <main class="layout">
-        <section class="card panel" id="setupPanel">
-          <h2>Neues Training starten</h2>
-          <div class="controls-grid">
-            <label>
-              Trainingsmodus
-              <select id="modeSelect">
-                <option value="words" selected>Wörter</option>
-                <option value="math">Malrechnen</option>
-              </select>
-            </label>
-            <div class="field-group">
-              <span id="setSizeLabel">Wörter pro Mission</span>
-              <select id="setSize">
-                <option value="5">5 Wörter</option>
-                <option value="10" selected>10 Wörter</option>
-                <option value="15">15 Wörter</option>
-                <option value="20">20 Wörter</option>
-              </select>
+      <main class="views-container">
+        <!-- HOME VIEW -->
+        <div class="view view-active" data-view="home">
+          <div class="home-hero">
+            <div class="starfield" id="starfieldCanvas"></div>
+            <p class="eyebrow">Lernspiel</p>
+            <h1 class="home-title">Galaxie Trainer</h1>
+            <p class="home-subtitle">Übe Wörter und Mathe, sammle Münzen und spiele Bonus-Spiele.</p>
+            <button id="goToSetupBtn" class="btn primary btn-xl pulse-glow">Mission starten</button>
+            <div class="home-stats-row">
+              <div class="home-stat" id="homeStreak"></div>
+              <div class="home-stat" id="homeCoins"></div>
+              <div class="home-stat" id="homeAccuracy"></div>
             </div>
+            <div class="home-stats-grid-inline">
+              <div class="stat-tile">
+                <span class="stat-value" id="statTotalPracticed">0</span>
+                <span class="stat-label">Geuebt</span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-value" id="statAccuracy">0%</span>
+                <span class="stat-label">Genauigkeit</span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-value" id="statCurrentStreak">0</span>
+                <span class="stat-label">Aktuelle Serie</span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-value" id="statBestStreak">0</span>
+                <span class="stat-label">Beste Serie</span>
+              </div>
+            </div>
+            <div class="home-badges" id="homeBadgeGallery"></div>
           </div>
-          <div class="field-group" id="wordSettings">
-            <span class="label-row">
-              Buchstabengruppen
-              <span class="label-actions">
-                <button type="button" class="btn-micro" id="selectAllGroupsBtn">Alle</button>
-                <button type="button" class="btn-micro" id="selectNoGroupsBtn">Keine</button>
+        </div>
+
+        <!-- STATS VIEW -->
+        <div class="view" data-view="stats">
+          <section class="stats-view-content">
+            <h2 class="stats-view-title">Statistiken</h2>
+            <div class="stats-grid stats-view-grid">
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewTotalPracticed">0</span>
+                <span class="stat-label">Geuebt</span>
+              </div>
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewAccuracy">0%</span>
+                <span class="stat-label">Genauigkeit</span>
+              </div>
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewCurrentStreak">0</span>
+                <span class="stat-label">Aktuelle Serie</span>
+              </div>
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewBestStreak">0</span>
+                <span class="stat-label">Beste Serie</span>
+              </div>
+            </div>
+            <h2 class="stats-view-title stats-view-title-badges">Abzeichen</h2>
+            <div class="badge-gallery badge-gallery-lg" id="badgeGallery"></div>
+          </section>
+        </div>
+
+        <!-- SETUP VIEW -->
+        <div class="view" data-view="setup">
+          <section class="card panel" id="setupPanel">
+            <h2>Neues Training starten</h2>
+            <div class="controls-grid">
+              <label>
+                Trainingsmodus
+                <select id="modeSelect">
+                  <option value="words" selected>Wörter</option>
+                  <option value="math">Malrechnen</option>
+                </select>
+              </label>
+              <div class="field-group">
+                <span id="setSizeLabel">Wörter pro Mission</span>
+                <select id="setSize">
+                  <option value="5">5 Wörter</option>
+                  <option value="10" selected>10 Wörter</option>
+                  <option value="15">15 Wörter</option>
+                  <option value="20">20 Wörter</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-group" id="wordSettings">
+              <span class="label-row">
+                Buchstabengruppen
+                <span class="label-actions">
+                  <button type="button" class="btn-micro" id="selectAllGroupsBtn">Alle</button>
+                  <button type="button" class="btn-micro" id="selectNoGroupsBtn">Keine</button>
+                </span>
               </span>
-            </span>
-            <div class="letter-group-picker loading" id="letterGroupPicker">
-              <span class="lg-placeholder">Wörter laden…</span>
+              <div class="letter-group-picker loading" id="letterGroupPicker">
+                <span class="lg-placeholder">Wörter laden…</span>
+              </div>
+              <span class="lg-count" id="letterGroupCount"></span>
             </div>
-            <span class="lg-count" id="letterGroupCount"></span>
-          </div>
-          <div class="field-group hidden" id="mathSettings">
-            <span class="label-row">
-              Reihen auswählen
-              <span class="label-actions">
-                <button type="button" class="btn-micro" id="selectAllTablesBtn">Alle</button>
-                <button type="button" class="btn-micro" id="selectNoTablesBtn">Keine</button>
+            <div class="field-group hidden" id="mathSettings">
+              <span class="label-row">
+                Reihen auswählen
+                <span class="label-actions">
+                  <button type="button" class="btn-micro" id="selectAllTablesBtn">Alle</button>
+                  <button type="button" class="btn-micro" id="selectNoTablesBtn">Keine</button>
+                </span>
               </span>
-            </span>
-            <div class="letter-group-picker" id="tablePicker"></div>
-            <span class="lg-count" id="tableCount"></span>
-          </div>
-          <button id="startBtn" class="btn primary">Mission starten</button>
-          <p class="small-note" id="wordNote">Tipp: Gross- und Kleinschreibung wird genau geprüft.</p>
-          <p class="small-note hidden" id="mathNote">Tipp: Wähle eine oder mehrere Reihen und rechne mit Zahlen von 0 bis 10.</p>
-        </section>
-
-        <section class="card panel hidden" id="quizPanel">
-          <div class="quiz-top">
-            <h2 id="quizTitle">Schreibe, was du hörst</h2>
-            <p id="progressText">Wort 1 / 10</p>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="progressFill"></div>
-          </div>
-          <div class="task-display hidden" id="taskDisplay"></div>
-          <div class="letter-slots" id="letterSlots"></div>
-          <div class="quiz-controls">
-            <button id="speakBtn" class="btn secondary">Wort vorlesen</button>
-            <input
-              id="wordInput"
-              type="text"
-              autocomplete="off"
-              placeholder="Wort hier eingeben"
-              aria-label="Gesprochenes Wort eingeben"
-            />
-            <button id="nextBtn" class="btn primary">Nächstes Wort</button>
-          </div>
-          <p id="quizFeedback" class="feedback"></p>
-        </section>
-
-        <section class="card panel hidden" id="resultPanel">
-          <h2>Missionsergebnis</h2>
-          <div class="result-highlight">
-            <div class="rating" id="ratingLabel">Wort-Held</div>
-            <div class="score-line" id="scoreLine">8 / 10 richtig</div>
-            <div class="score-line" id="coinRewardLine">+20 Münzen erhalten</div>
-          </div>
-          <div id="mistakesBlock">
-            <h3>Fehler-Labor</h3>
-            <p>Korrigiere die falschen Wörter und hole Bonus-Münzen.</p>
-            <div id="mistakesList"></div>
-            <button id="checkCorrectionsBtn" class="btn primary">Korrekturen prüfen</button>
-            <p id="correctionFeedback" class="feedback"></p>
-          </div>
-          <button id="playAgainBtn" class="btn secondary">Neues Set spielen</button>
-        </section>
-
-        <section class="card panel stats-card" id="statsPanel">
-          <h2>Statistiken</h2>
-          <div class="stats-grid">
-            <div class="stat-tile">
-              <span class="stat-value" id="statTotalPracticed">0</span>
-              <span class="stat-label">Geuebt</span>
+              <div class="letter-group-picker" id="tablePicker"></div>
+              <span class="lg-count" id="tableCount"></span>
             </div>
-            <div class="stat-tile">
-              <span class="stat-value" id="statAccuracy">0%</span>
-              <span class="stat-label">Genauigkeit</span>
-            </div>
-            <div class="stat-tile">
-              <span class="stat-value" id="statCurrentStreak">\u{1F525} 0</span>
-              <span class="stat-label">Aktuelle Serie</span>
-            </div>
-            <div class="stat-tile">
-              <span class="stat-value" id="statBestStreak">\u{2B50} 0</span>
-              <span class="stat-label">Beste Serie</span>
-            </div>
-          </div>
-          <h3>Abzeichen</h3>
-          <div class="badge-gallery" id="badgeGallery"></div>
-        </section>
+            <button id="startBtn" class="btn primary">Mission starten</button>
+            <p class="small-note" id="wordNote">Tipp: Gross- und Kleinschreibung wird genau geprüft.</p>
+            <p class="small-note hidden" id="mathNote">Tipp: Wähle eine oder mehrere Reihen und rechne mit Zahlen von 0 bis 10.</p>
+          </section>
+        </div>
 
-        <section class="card panel arcade-card" id="miniGamePanel">
-          <h2 class="arcade-title">Bonus-Spiele</h2>
-          <div class="arcade-games">
+        <!-- QUIZ VIEW -->
+        <div class="view" data-view="quiz">
+          <section class="card panel" id="quizPanel">
+            <div class="quiz-top">
+              <h2 id="quizTitle">Schreibe, was du hörst</h2>
+              <p id="progressText">Wort 1 / 10</p>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="task-display hidden" id="taskDisplay"></div>
+            <div class="letter-slots" id="letterSlots"></div>
+            <div class="quiz-controls">
+              <button id="speakBtn" class="btn secondary">Wort vorlesen</button>
+              <input
+                id="wordInput"
+                type="text"
+                autocomplete="off"
+                placeholder="Wort hier eingeben"
+                aria-label="Gesprochenes Wort eingeben"
+              />
+              <button id="nextBtn" class="btn primary">Nächstes Wort</button>
+            </div>
+            <p id="quizFeedback" class="feedback"></p>
+          </section>
+        </div>
+
+        <!-- RESULT VIEW -->
+        <div class="view" data-view="result">
+          <section class="card panel" id="resultPanel">
+            <h2>Missionsergebnis</h2>
+            <div class="result-score-circle" id="resultScoreCircle" style="--pct: 0%">
+              <span class="result-score-number" id="resultScoreNumber">0%</span>
+            </div>
+            <div class="result-highlight">
+              <div class="rating" id="ratingLabel">Lern-Held</div>
+              <div class="score-line" id="scoreLine">8 / 10 richtig</div>
+              <div class="score-line" id="coinRewardLine">+20 Münzen erhalten</div>
+            </div>
+            <div id="mistakesBlock">
+              <h3>Fehler-Labor</h3>
+              <p>Korrigiere die falschen Antworten und hole Bonus-Münzen.</p>
+              <div id="mistakesList"></div>
+              <button id="checkCorrectionsBtn" class="btn primary">Korrekturen prüfen</button>
+              <p id="correctionFeedback" class="feedback"></p>
+            </div>
+            <button id="playAgainBtn" class="btn secondary">Neues Set spielen</button>
+          </section>
+        </div>
+
+        <!-- ARCADE VIEW -->
+        <div class="view" data-view="arcade">
+          <h2 class="arcade-view-title">Bonus-Spiele</h2>
+          <div class="arcade-grid" id="miniGamePanel">
             <!-- Tetris -->
-            <div class="arcade-game-row">
-              <div class="arcade-game-header">
-                <span class="arcade-game-name">🎮 Tetris</span>
+            <div class="game-card game-card--tetris">
+              <div class="game-card-icon">&#x1F9F1;</div>
+              <div class="game-card-title">Tetris</div>
+              <p class="game-card-desc">Trainiere, sammle 20 Münzen und spiele 1 Runde.</p>
+              <div class="game-card-stats">
                 <span class="ticket-badge">Spiele: <strong id="tetrisPlays">0</strong></span>
               </div>
-              <p class="small-note">Trainiere Wörter, sammle 20 Münzen und spiele 1 Runde.</p>
-              <div class="arcade-actions">
-                <button id="buyTetrisPlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
-                <button id="openTetrisBtn" class="btn arcade-play">Tetris öffnen</button>
+              <div class="game-card-actions">
+                <button id="buyTetrisPlaysBtn" class="btn arcade-buy">1 Spiel kaufen</button>
+                <button id="openTetrisBtn" class="btn arcade-play">Spielen</button>
               </div>
             </div>
             <!-- Snake -->
-            <div class="arcade-game-row">
-              <div class="arcade-game-header">
-                <span class="arcade-game-name">🐍 Snake</span>
+            <div class="game-card game-card--snake">
+              <div class="game-card-icon">&#x1F40D;</div>
+              <div class="game-card-title">Snake</div>
+              <p class="game-card-desc">Fress Äpfel, werde länger, vermeide dich selbst.</p>
+              <div class="game-card-stats">
                 <span class="ticket-badge">Spiele: <strong id="snakePlays">0</strong></span>
               </div>
-              <p class="small-note">Fress Äpfel, werde länger, vermeide dich selbst.</p>
-              <div class="arcade-actions">
-                <button id="buySnakePlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
-                <button id="openSnakeBtn" class="btn arcade-play">Snake öffnen</button>
+              <div class="game-card-actions">
+                <button id="buySnakePlaysBtn" class="btn arcade-buy">1 Spiel kaufen</button>
+                <button id="openSnakeBtn" class="btn arcade-play">Spielen</button>
               </div>
             </div>
             <!-- Moorhuhn -->
-            <div class="arcade-game-row">
-              <div class="arcade-game-header">
-                <span class="arcade-game-name">🐔 Moorhuhn</span>
+            <div class="game-card game-card--moorhuhn">
+              <div class="game-card-icon">&#x1F414;</div>
+              <div class="game-card-title">Moorhuhn</div>
+              <p class="game-card-desc">Schiesse fliegende Hühner ab und sammle Punkte.</p>
+              <div class="game-card-stats">
                 <span class="ticket-badge">Spiele: <strong id="moorhuhnPlays">0</strong></span>
               </div>
-              <p class="small-note">Schiesse fliegende Hühner ab und sammle Punkte.</p>
-              <div class="arcade-actions">
-                <button id="buyMoorhuhnPlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
-                <button id="openMoorhuhnBtn" class="btn arcade-play">Moorhuhn öffnen</button>
+              <div class="game-card-actions">
+                <button id="buyMoorhuhnPlaysBtn" class="btn arcade-buy">1 Spiel kaufen</button>
+                <button id="openMoorhuhnBtn" class="btn arcade-play">Spielen</button>
               </div>
             </div>
+            <p id="miniGameFeedback" class="feedback"></p>
           </div>
-          <p id="miniGameFeedback" class="feedback"></p>
-        </section>
+
+        </div>
       </main>
       <footer class="build-info" id="buildInfo"></footer>
     </div>
+
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="nav-item active" data-nav="home" aria-label="Home">
+        <span class="nav-icon">&#x1F3E0;</span>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-item" data-nav="setup" aria-label="Training">
+        <span class="nav-icon">&#x1F4DD;</span>
+        <span class="nav-label">Training</span>
+      </button>
+      <button class="nav-item" data-nav="stats" aria-label="Statistiken">
+        <span class="nav-icon">&#x1F4CA;</span>
+        <span class="nav-label">Stats</span>
+      </button>
+      <button class="nav-item" data-nav="arcade" aria-label="Spiele">
+        <span class="nav-icon">&#x1F3AE;</span>
+        <span class="nav-label">Spiele</span>
+      </button>
+    </nav>
 
     <!-- Tetris Modal -->
     <div class="tetris-modal-backdrop hidden" id="tetrisModalBackdrop">
