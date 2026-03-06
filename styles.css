@@ -530,6 +530,68 @@ body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
 }
 
+/* ── Celebration results screen ── */
+.view[data-view="result"] {
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.view[data-view="result"] .panel {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.result-score-circle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--pct), var(--bg-surface) var(--pct));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: scoreReveal 1s ease-out forwards;
+}
+
+.result-score-circle::before {
+  content: '';
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: var(--bg-mid);
+  position: absolute;
+}
+
+.result-score-number {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+@keyframes scoreReveal {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.coin-fly {
+  position: fixed;
+  font-size: 1.5rem;
+  pointer-events: none;
+  z-index: 9999;
+  animation: coinFlyUp 1s ease-out forwards;
+}
+
+@keyframes coinFlyUp {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-100px) scale(0.5); opacity: 0; }
+}
+
 /* ─── Glass card ─── */
 
 .card {

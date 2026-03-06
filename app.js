@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:11";
+const BUILD_DATE = "2026-03-06 09:12";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -1357,6 +1357,15 @@ function finishQuiz() {
   els.scoreLine.textContent = `${correctCount} / ${total} richtig (${percent}%)`;
   els.coinRewardLine.textContent = `+${earnedCoins} Münzen erhalten`;
   els.progressFill.style.width = "100%";
+
+  // Animated score circle
+  const scoreCircle = document.getElementById('resultScoreCircle');
+  const scoreNumber = document.getElementById('resultScoreNumber');
+  if (scoreCircle) scoreCircle.style.setProperty('--pct', percent + '%');
+  if (scoreNumber) animateScoreCounter(scoreNumber, percent, 800);
+
+  // Coin fly animation
+  if (earnedCoins > 0) spawnCoinAnimation(earnedCoins);
 
   renderMistakes();
   setPanelVisibility({ setup: false, quiz: false, result: true });
@@ -5084,6 +5093,33 @@ function spawnMiniCelebration(anchor) {
     dot.style.setProperty('--dy', -(Math.random() * 80 + 30) + 'px');
     document.body.appendChild(dot);
     setTimeout(() => dot.remove(), 700);
+  }
+}
+
+function animateScoreCounter(element, target, duration) {
+  const start = performance.now();
+  function tick(now) {
+    const elapsed = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - elapsed, 3);
+    element.textContent = Math.round(target * eased) + '%';
+    if (elapsed < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function spawnCoinAnimation(count) {
+  const target = document.getElementById('coinBadge');
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  for (let i = 0; i < Math.min(count, 10); i++) {
+    const coin = document.createElement('span');
+    coin.className = 'coin-fly';
+    coin.textContent = '\u{1FA99}';
+    coin.style.left = (rect.left + Math.random() * rect.width) + 'px';
+    coin.style.top = rect.top + 'px';
+    coin.style.animationDelay = (i * 0.1) + 's';
+    document.body.appendChild(coin);
+    setTimeout(() => coin.remove(), 1200);
   }
 }
 
