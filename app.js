@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:10";
+const BUILD_DATE = "2026-03-06 09:11";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -444,6 +444,9 @@ async function initialize() {
       "bad"
     );
   }
+
+  initStarfield();
+  updateHomeStats();
 }
 
 function bindEvents() {
@@ -1556,6 +1559,73 @@ function resetToSetup() {
   setSetupFeedback();
 }
 
+// ─── Starfield & Home Stats ───
+
+function initStarfield() {
+  const container = document.getElementById('starfieldCanvas');
+  if (!container) return;
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'width:100%;height:100%;display:block;';
+  container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  const stars = [];
+  const STAR_COUNT = 120;
+
+  function resize() {
+    canvas.width = container.offsetWidth * devicePixelRatio;
+    canvas.height = container.offsetHeight * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: Math.random() * container.offsetWidth,
+      y: Math.random() * container.offsetHeight,
+      r: Math.random() * 1.5 + 0.3,
+      speed: Math.random() * 0.3 + 0.05,
+      alpha: Math.random() * 0.6 + 0.4,
+      twinkleSpeed: Math.random() * 0.02 + 0.005,
+      twinklePhase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  let frame = 0;
+  function draw() {
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    ctx.clearRect(0, 0, w, h);
+    for (const s of stars) {
+      s.y -= s.speed;
+      if (s.y < -2) { s.y = h + 2; s.x = Math.random() * w; }
+      const alpha = s.alpha * (0.6 + 0.4 * Math.sin(frame * s.twinkleSpeed + s.twinklePhase));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fill();
+    }
+    frame++;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function updateHomeStats() {
+  const streak = document.getElementById('homeStreak');
+  const coins = document.getElementById('homeCoins');
+  const accuracy = document.getElementById('homeAccuracy');
+  if (streak) streak.innerHTML = `<strong>\u{1F525} ${state.streak.current}</strong>Tage-Serie`;
+  if (coins) coins.innerHTML = `<strong>\u{1F4B0} ${state.coins}</strong>Münzen`;
+  const pct = state.stats.totalPracticed > 0
+    ? Math.round(state.stats.totalCorrect / state.stats.totalPracticed * 100)
+    : 0;
+  if (accuracy) accuracy.innerHTML = `<strong>\u{1F3AF} ${pct}%</strong>Genauigkeit`;
+}
+
+// ─── View Router ───
+
 const VIEWS = ["home", "setup", "quiz", "result", "arcade"];
 
 function navigateTo(viewName) {
@@ -1586,6 +1656,9 @@ function navigateTo(viewName) {
   next.addEventListener('animationend', () => {
     next.classList.remove('view-enter');
   }, { once: true });
+
+  // Update view-specific displays
+  if (viewName === 'home') updateHomeStats();
 }
 
 function setPanelVisibility({ setup, quiz, result }) {
