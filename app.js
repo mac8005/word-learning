@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 08:18";
+const BUILD_DATE = "2026-03-06 08:20";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -1091,6 +1091,17 @@ function renderCurrentQuizState() {
   } else {
     setFeedback(els.quizFeedback, "Hören und tippen. Das Wort wird nicht angezeigt.", "ok");
   }
+
+  els.wordInput.removeEventListener("input", handleSlotFill);
+  els.wordInput.addEventListener("input", handleSlotFill);
+}
+
+function handleSlotFill() {
+  const slots = els.letterSlots.querySelectorAll(".slot");
+  const typed = els.wordInput.value.length;
+  slots.forEach((slot, i) => {
+    slot.classList.toggle("filled", i < typed);
+  });
 }
 
 function speakCurrentItem() {
@@ -1240,6 +1251,20 @@ function submitCurrentAnswer() {
     });
     recordResult(target, correct);
   }
+
+  const lastAnswer = state.answers[state.answers.length - 1];
+  if (lastAnswer) {
+    playSfx(lastAnswer.correct ? "quizCorrect" : "quizWrong");
+  }
+
+  if (lastAnswer && !lastAnswer.correct) {
+    els.wordInput.classList.add("shake");
+    setTimeout(() => els.wordInput.classList.remove("shake"), 400);
+  }
+
+  const slots = els.letterSlots.querySelectorAll(".slot");
+  const colorClass = lastAnswer.correct ? "correct-slot" : "wrong-slot";
+  slots.forEach((slot) => slot.classList.add(colorClass));
 
   state.currentIndex += 1;
   if (state.currentIndex >= state.quizItems.length) {
@@ -2541,6 +2566,13 @@ function playSfx(name) {
   } else if (name === "moorhuhnEmpty") {
     // Sharp dry click
     playTone(2000, 0.02, { type: "square", gain: 0.08 });
+  } else if (name === "quizCorrect") {
+    playTone(523, 0.1, { type: "triangle", gain: 0.025 });
+    playTone(659, 0.1, { type: "triangle", gain: 0.025, delay: 0.1 });
+    playTone(784, 0.15, { type: "triangle", gain: 0.03, delay: 0.2 });
+  } else if (name === "quizWrong") {
+    playTone(330, 0.12, { type: "sawtooth", gain: 0.018, endFrequency: 260 });
+    playTone(260, 0.15, { type: "sawtooth", gain: 0.015, delay: 0.12, endFrequency: 200 });
   }
 }
 
