@@ -148,72 +148,75 @@
 
         <!-- ARCADE VIEW -->
         <div class="view" data-view="arcade">
-          <section class="card panel stats-card" id="statsPanel">
-            <h2>Statistiken</h2>
-            <div class="stats-grid">
-              <div class="stat-tile">
-                <span class="stat-value" id="statTotalPracticed">0</span>
-                <span class="stat-label">Geübt</span>
+          <h2 class="arcade-view-title">Bonus-Spiele</h2>
+          <div class="arcade-grid" id="miniGamePanel">
+            <!-- Tetris -->
+            <div class="game-card game-card--tetris">
+              <div class="game-card-icon">&#x1F9F1;</div>
+              <div class="game-card-title">Tetris</div>
+              <p class="game-card-desc">Trainiere, sammle 20 Münzen und spiele 1 Runde.</p>
+              <div class="game-card-stats">
+                <span class="ticket-badge">Spiele: <strong id="tetrisPlays">0</strong></span>
               </div>
-              <div class="stat-tile">
-                <span class="stat-value" id="statAccuracy">0%</span>
-                <span class="stat-label">Genauigkeit</span>
-              </div>
-              <div class="stat-tile">
-                <span class="stat-value" id="statCurrentStreak">0</span>
-                <span class="stat-label">Aktuelle Serie</span>
-              </div>
-              <div class="stat-tile">
-                <span class="stat-value" id="statBestStreak">0</span>
-                <span class="stat-label">Beste Serie</span>
+              <div class="game-card-actions">
+                <button id="buyTetrisPlaysBtn" class="btn arcade-buy">1 Spiel kaufen</button>
+                <button id="openTetrisBtn" class="btn arcade-play">Spielen</button>
               </div>
             </div>
-            <h3>Abzeichen</h3>
-            <div class="badge-gallery" id="badgeGallery"></div>
-          </section>
-
-          <section class="card panel arcade-card" id="miniGamePanel">
-            <h2 class="arcade-title">Bonus-Spiele</h2>
-            <div class="arcade-games">
-              <!-- Tetris -->
-              <div class="arcade-game-row">
-                <div class="arcade-game-header">
-                  <span class="arcade-game-name">Tetris</span>
-                  <span class="ticket-badge">Spiele: <strong id="tetrisPlays">0</strong></span>
-                </div>
-                <p class="small-note">Trainiere, sammle 20 Münzen und spiele 1 Runde.</p>
-                <div class="arcade-actions">
-                  <button id="buyTetrisPlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
-                  <button id="openTetrisBtn" class="btn arcade-play">Tetris öffnen</button>
-                </div>
+            <!-- Snake -->
+            <div class="game-card game-card--snake">
+              <div class="game-card-icon">&#x1F40D;</div>
+              <div class="game-card-title">Snake</div>
+              <p class="game-card-desc">Fress Äpfel, werde länger, vermeide dich selbst.</p>
+              <div class="game-card-stats">
+                <span class="ticket-badge">Spiele: <strong id="snakePlays">0</strong></span>
               </div>
-              <!-- Snake -->
-              <div class="arcade-game-row">
-                <div class="arcade-game-header">
-                  <span class="arcade-game-name">Snake</span>
-                  <span class="ticket-badge">Spiele: <strong id="snakePlays">0</strong></span>
-                </div>
-                <p class="small-note">Fress Äpfel, werde länger, vermeide dich selbst.</p>
-                <div class="arcade-actions">
-                  <button id="buySnakePlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
-                  <button id="openSnakeBtn" class="btn arcade-play">Snake öffnen</button>
-                </div>
+              <div class="game-card-actions">
+                <button id="buySnakePlaysBtn" class="btn arcade-buy">1 Spiel kaufen</button>
+                <button id="openSnakeBtn" class="btn arcade-play">Spielen</button>
               </div>
-              <!-- Moorhuhn -->
-              <div class="arcade-game-row">
-                <div class="arcade-game-header">
-                  <span class="arcade-game-name">Moorhuhn</span>
-                  <span class="ticket-badge">Spiele: <strong id="moorhuhnPlays">0</strong></span>
-                </div>
-                <p class="small-note">Schiesse fliegende Hühner ab und sammle Punkte.</p>
-                <div class="arcade-actions">
-                  <button id="buyMoorhuhnPlaysBtn" class="btn arcade-buy">1 Spiel für 20 Münzen</button>
-                  <button id="openMoorhuhnBtn" class="btn arcade-play">Moorhuhn öffnen</button>
-                </div>
+            </div>
+            <!-- Moorhuhn -->
+            <div class="game-card game-card--moorhuhn">
+              <div class="game-card-icon">&#x1F414;</div>
+              <div class="game-card-title">Moorhuhn</div>
+              <p class="game-card-desc">Schiesse fliegende Hühner ab und sammle Punkte.</p>
+              <div class="game-card-stats">
+                <span class="ticket-badge">Spiele: <strong id="moorhuhnPlays">0</strong></span>
+              </div>
+              <div class="game-card-actions">
+                <button id="buyMoorhuhnPlaysBtn" class="btn arcade-buy">1 Spiel kaufen</button>
+                <button id="openMoorhuhnBtn" class="btn arcade-play">Spielen</button>
               </div>
             </div>
             <p id="miniGameFeedback" class="feedback"></p>
-          </section>
+          </div>
+
+          <details class="arcade-stats-details" id="statsPanel">
+            <summary class="arcade-stats-toggle">Statistiken &amp; Abzeichen</summary>
+            <div class="arcade-stats-content">
+              <div class="stats-grid">
+                <div class="stat-tile">
+                  <span class="stat-value" id="statTotalPracticed">0</span>
+                  <span class="stat-label">Geübt</span>
+                </div>
+                <div class="stat-tile">
+                  <span class="stat-value" id="statAccuracy">0%</span>
+                  <span class="stat-label">Genauigkeit</span>
+                </div>
+                <div class="stat-tile">
+                  <span class="stat-value" id="statCurrentStreak">0</span>
+                  <span class="stat-label">Aktuelle Serie</span>
+                </div>
+                <div class="stat-tile">
+                  <span class="stat-value" id="statBestStreak">0</span>
+                  <span class="stat-label">Beste Serie</span>
+                </div>
+              </div>
+              <h3>Abzeichen</h3>
+              <div class="badge-gallery" id="badgeGallery"></div>
+            </div>
+          </details>
         </div>
       </main>
       <footer class="build-info" id="buildInfo"></footer>

@@ -1254,60 +1254,143 @@ select option {
   to { opacity: 0; transform: translateX(40px); }
 }
 
-/* ─── Arcade card ─── */
+/* ─── Arcade view ─── */
 
-.arcade-card {
-  background: rgba(99, 102, 241, 0.08);
-  border-color: rgba(99, 102, 241, 0.2);
-  color: var(--ink);
+.arcade-view-title {
+  font-size: 1.6rem;
+  margin-bottom: 1.2rem;
+  text-align: center;
 }
 
-.arcade-card:hover {
-  border-color: rgba(99, 102, 241, 0.35);
-  box-shadow: var(--shadow-md), 0 0 30px rgba(99, 102, 241, 0.08);
+.arcade-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 920px;
 }
 
-.arcade-title {
-  color: var(--ink);
-  margin: 0;
-}
-
-.arcade-card .small-note {
-  color: var(--ink-dim);
-  margin: 0;
-}
-
-.arcade-games {
+.game-card {
+  border-radius: var(--radius-lg);
+  padding: 1.8rem;
   display: flex;
   flex-direction: column;
+  gap: 0.8rem;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.game-card:hover {
+  transform: translateY(-4px);
+}
+
+.game-card--tetris {
+  background: linear-gradient(135deg, rgba(124,77,255,0.15), rgba(96,165,250,0.1));
+  border-color: rgba(124,77,255,0.3);
+  box-shadow: 0 8px 32px rgba(124,77,255,0.15);
+}
+.game-card--tetris:hover {
+  box-shadow: 0 12px 40px rgba(124,77,255,0.25);
+}
+
+.game-card--snake {
+  background: linear-gradient(135deg, rgba(74,222,128,0.15), rgba(24,255,255,0.1));
+  border-color: rgba(74,222,128,0.3);
+  box-shadow: 0 8px 32px rgba(74,222,128,0.15);
+}
+.game-card--snake:hover {
+  box-shadow: 0 12px 40px rgba(74,222,128,0.25);
+}
+
+.game-card--moorhuhn {
+  background: linear-gradient(135deg, rgba(255,145,0,0.15), rgba(255,215,64,0.1));
+  border-color: rgba(255,145,0,0.3);
+  box-shadow: 0 8px 32px rgba(255,145,0,0.15);
+}
+.game-card--moorhuhn:hover {
+  box-shadow: 0 12px 40px rgba(255,145,0,0.25);
+}
+
+.game-card-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.game-card-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.game-card-desc {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.game-card-stats {
+  display: flex;
   gap: 0.75rem;
-}
-
-.arcade-game-row {
-  border-top: 1px solid rgba(255,255,255,0.06);
-  padding-top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.arcade-game-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
 }
 
-.arcade-game-name {
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--ink);
-}
-
-.arcade-actions {
+.game-card-actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+
+/* ─── Arcade stats collapsible ─── */
+
+.arcade-stats-details {
+  width: 100%;
+  max-width: 920px;
+  margin-top: 2rem;
+  border-radius: var(--radius-lg);
+  background: rgba(105, 240, 174, 0.04);
+  border: 1px solid rgba(105, 240, 174, 0.15);
+  overflow: hidden;
+}
+
+.arcade-stats-toggle {
+  display: block;
+  padding: 1rem 1.5rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--transition);
+}
+
+.arcade-stats-toggle::-webkit-details-marker { display: none; }
+
+.arcade-stats-toggle::before {
+  content: "\25B6";
+  display: inline-block;
+  margin-right: 0.6rem;
+  font-size: 0.75rem;
+  transition: transform var(--transition);
+}
+
+.arcade-stats-details[open] .arcade-stats-toggle::before {
+  transform: rotate(90deg);
+}
+
+.arcade-stats-toggle:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.arcade-stats-content {
+  padding: 0 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .arcade-buy {
@@ -2000,9 +2083,24 @@ body.light-mode .stat-tile {
   border-color: rgba(0, 0, 0, 0.06);
 }
 
-body.light-mode .arcade-card {
-  background: rgba(98, 0, 234, 0.04);
-  border-color: rgba(98, 0, 234, 0.12);
+body.light-mode .game-card--tetris {
+  background: linear-gradient(135deg, rgba(98,0,234,0.08), rgba(83,109,254,0.06));
+  border-color: rgba(98,0,234,0.2);
+}
+body.light-mode .game-card--snake {
+  background: linear-gradient(135deg, rgba(0,200,83,0.08), rgba(0,145,234,0.06));
+  border-color: rgba(0,200,83,0.2);
+}
+body.light-mode .game-card--moorhuhn {
+  background: linear-gradient(135deg, rgba(255,143,0,0.08), rgba(255,215,64,0.06));
+  border-color: rgba(255,143,0,0.2);
+}
+body.light-mode .arcade-stats-details {
+  background: rgba(0, 200, 83, 0.04);
+  border-color: rgba(0, 200, 83, 0.12);
+}
+body.light-mode .arcade-stats-toggle:hover {
+  background: rgba(0, 0, 0, 0.03);
 }
 
 body.light-mode .ticket-badge {
