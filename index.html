@@ -37,7 +37,52 @@
               <div class="home-stat" id="homeCoins"></div>
               <div class="home-stat" id="homeAccuracy"></div>
             </div>
+            <div class="home-stats-grid-inline">
+              <div class="stat-tile">
+                <span class="stat-value" id="statTotalPracticed">0</span>
+                <span class="stat-label">Geuebt</span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-value" id="statAccuracy">0%</span>
+                <span class="stat-label">Genauigkeit</span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-value" id="statCurrentStreak">0</span>
+                <span class="stat-label">Aktuelle Serie</span>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-value" id="statBestStreak">0</span>
+                <span class="stat-label">Beste Serie</span>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <!-- STATS VIEW -->
+        <div class="view" data-view="stats">
+          <section class="stats-view-content">
+            <h2 class="stats-view-title">Statistiken</h2>
+            <div class="stats-grid stats-view-grid">
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewTotalPracticed">0</span>
+                <span class="stat-label">Geuebt</span>
+              </div>
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewAccuracy">0%</span>
+                <span class="stat-label">Genauigkeit</span>
+              </div>
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewCurrentStreak">0</span>
+                <span class="stat-label">Aktuelle Serie</span>
+              </div>
+              <div class="stat-tile stat-tile-lg">
+                <span class="stat-value" id="statViewBestStreak">0</span>
+                <span class="stat-label">Beste Serie</span>
+              </div>
+            </div>
+            <h2 class="stats-view-title stats-view-title-badges">Abzeichen</h2>
+            <div class="badge-gallery badge-gallery-lg" id="badgeGallery"></div>
+          </section>
         </div>
 
         <!-- SETUP VIEW -->
@@ -188,31 +233,6 @@
             <p id="miniGameFeedback" class="feedback"></p>
           </div>
 
-          <details class="arcade-stats-details" id="statsPanel">
-            <summary class="arcade-stats-toggle">Statistiken &amp; Abzeichen</summary>
-            <div class="arcade-stats-content">
-              <div class="stats-grid">
-                <div class="stat-tile">
-                  <span class="stat-value" id="statTotalPracticed">0</span>
-                  <span class="stat-label">Geübt</span>
-                </div>
-                <div class="stat-tile">
-                  <span class="stat-value" id="statAccuracy">0%</span>
-                  <span class="stat-label">Genauigkeit</span>
-                </div>
-                <div class="stat-tile">
-                  <span class="stat-value" id="statCurrentStreak">0</span>
-                  <span class="stat-label">Aktuelle Serie</span>
-                </div>
-                <div class="stat-tile">
-                  <span class="stat-value" id="statBestStreak">0</span>
-                  <span class="stat-label">Beste Serie</span>
-                </div>
-              </div>
-              <h3>Abzeichen</h3>
-              <div class="badge-gallery" id="badgeGallery"></div>
-            </div>
-          </details>
         </div>
       </main>
       <footer class="build-info" id="buildInfo"></footer>
@@ -226,6 +246,10 @@
       <button class="nav-item" data-nav="setup" aria-label="Training">
         <span class="nav-icon">&#x1F4DD;</span>
         <span class="nav-label">Training</span>
+      </button>
+      <button class="nav-item" data-nav="stats" aria-label="Statistiken">
+        <span class="nav-icon">&#x1F4CA;</span>
+        <span class="nav-label">Stats</span>
       </button>
       <button class="nav-item" data-nav="arcade" aria-label="Spiele">
         <span class="nav-icon">&#x1F3AE;</span>

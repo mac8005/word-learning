@@ -351,9 +351,11 @@ body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: calc(100vh - 160px);
+  min-height: auto;
+  padding-top: 3rem;
+  padding-bottom: 1rem;
   position: relative;
-  gap: 1.2rem;
+  gap: 1rem;
 }
 
 #starfieldCanvas {
@@ -431,6 +433,84 @@ body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
 .view[data-view="home"] .eyebrow {
   position: relative;
   z-index: 1;
+}
+
+/* ── Home inline stats (tight under hero) ── */
+
+.home-stats-grid-inline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 540px;
+  margin-top: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.home-stats-grid-inline .stat-tile {
+  padding: 0.6rem 0.4rem;
+}
+
+@media (max-width: 560px) {
+  .home-stats-grid-inline {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Dedicated stats view ── */
+
+.stats-view-content {
+  width: 100%;
+  max-width: 700px;
+}
+
+.stats-view-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: var(--ink);
+}
+
+.stats-view-title-badges {
+  margin-top: 2rem;
+}
+
+.stats-grid.stats-view-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.stat-tile-lg {
+  padding: 1.2rem 0.8rem;
+}
+
+.stat-tile-lg .stat-value {
+  font-size: 2rem;
+}
+
+.stat-tile-lg .stat-label {
+  font-size: 0.85rem;
+}
+
+.badge-gallery-lg {
+  gap: 0.8rem;
+}
+
+.badge-gallery-lg .badge-tile {
+  width: 90px;
+  padding: 0.8rem 0.4rem;
+}
+
+.badge-gallery-lg .badge-icon {
+  font-size: 2rem;
+}
+
+@media (max-width: 560px) {
+  .stats-grid.stats-view-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ── Immersive quiz view ── */
@@ -2071,6 +2151,10 @@ body.light-mode .mistake-item.corrected {
 body.light-mode .stat-tile {
   background: rgba(255, 255, 255, 0.6);
   border-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-mode .stats-view-content {
+  color: var(--ink);
 }
 
 body.light-mode .game-card--tetris {

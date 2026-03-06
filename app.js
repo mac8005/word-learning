@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:19";
+const BUILD_DATE = "2026-03-06 09:43";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -411,6 +411,7 @@ async function initialize() {
   updateSnakeStats();
   updateMoorhuhnStats();
   updateStatsDisplay();
+  updateStatsViewDisplay();
   renderBadgeGallery();
   bindEvents();
   setupSnakeEventListeners();
@@ -1636,7 +1637,7 @@ function updateHomeStats() {
 
 // ─── View Router ───
 
-const VIEWS = ["home", "setup", "quiz", "result", "arcade"];
+const VIEWS = ["home", "setup", "quiz", "result", "stats", "arcade"];
 
 function navigateTo(viewName) {
   if (!VIEWS.includes(viewName)) return;
@@ -1671,7 +1672,15 @@ function navigateTo(viewName) {
   }, { once: true });
 
   // Update view-specific displays
-  if (viewName === 'home') updateHomeStats();
+  if (viewName === 'home') {
+    updateHomeStats();
+    updateStatsDisplay();
+    renderBadgeGallery();
+  }
+  if (viewName === 'stats') {
+    updateStatsViewDisplay();
+    renderBadgeGallery();
+  }
   if (viewName === 'arcade') {
     updateCoinDisplay();
     updateTetrisPlayDisplay();
@@ -1771,6 +1780,22 @@ function updateStatsDisplay() {
   els.statCurrentStreak.textContent = "\u{1F525} " + state.streak.current;
   els.statBestStreak.textContent = "\u{2B50} " + state.streak.best;
   els.streakCount.textContent = String(state.streak.current);
+}
+
+function updateStatsViewDisplay() {
+  const s = state.stats;
+  const accuracy = s.totalPracticed > 0
+    ? Math.round((s.totalCorrect / s.totalPracticed) * 100)
+    : 0;
+  const el = (id) => document.getElementById(id);
+  const svtp = el('statViewTotalPracticed');
+  const sva = el('statViewAccuracy');
+  const svcs = el('statViewCurrentStreak');
+  const svbs = el('statViewBestStreak');
+  if (svtp) svtp.textContent = String(s.totalPracticed);
+  if (sva) sva.textContent = accuracy + "%";
+  if (svcs) svcs.textContent = "\u{1F525} " + state.streak.current;
+  if (svbs) svbs.textContent = "\u{2B50} " + state.streak.best;
 }
 
 function recordQuizStats(answers) {
