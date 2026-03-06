@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 08:22";
+const BUILD_DATE = "2026-03-06 09:09";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -27,14 +27,14 @@ const ACHIEVEMENTS_KEY = "word_galaxy_achievements";
 
 const ACHIEVEMENT_DEFS = [
   { id: "first_perfect", icon: "\u{1F31F}", name: "Perfektionist", desc: "Erste fehlerfreie Mission", check: (s) => s._lastPerfect },
-  { id: "words_50", icon: "\u{1F4DA}", name: "Buecherwurm", desc: "50 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 50 },
-  { id: "words_100", icon: "\u{1F393}", name: "Wort-Meister", desc: "100 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 100 },
-  { id: "words_500", icon: "\u{1F3C6}", name: "Wort-Champion", desc: "500 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 500 },
+  { id: "words_50", icon: "\u{1F4DA}", name: "Buecherwurm", desc: "50 Aufgaben geuebt", check: (s) => s.stats.totalPracticed >= 50 },
+  { id: "words_100", icon: "\u{1F393}", name: "Galaxie-Meister", desc: "100 Aufgaben geuebt", check: (s) => s.stats.totalPracticed >= 100 },
+  { id: "words_500", icon: "\u{1F3C6}", name: "Galaxie-Champion", desc: "500 Aufgaben geuebt", check: (s) => s.stats.totalPracticed >= 500 },
   { id: "streak_3", icon: "\u{1F525}", name: "Fleissig", desc: "3 Tage am Stueck geuebt", check: (s) => s.streak.current >= 3 },
   { id: "streak_7", icon: "\u{1F4AA}", name: "Unaufhaltsam", desc: "7 Tage am Stueck geuebt", check: (s) => s.streak.current >= 7 },
   { id: "coins_50", icon: "\u{1F4B0}", name: "Sparschwein", desc: "50 Muenzen gesammelt", check: (s) => s.coins >= 50 },
   { id: "coins_200", icon: "\u{1F3E6}", name: "Bankier", desc: "200 Muenzen insgesamt", check: (s) => s.coins >= 200 },
-  { id: "accuracy_90", icon: "\u{1F3AF}", name: "Scharfschuetze", desc: "90% Genauigkeit (mind. 20 Woerter)", check: (s) => s.stats.totalPracticed >= 20 && (s.stats.totalCorrect / s.stats.totalPracticed) >= 0.9 },
+  { id: "accuracy_90", icon: "\u{1F3AF}", name: "Scharfschuetze", desc: "90% Genauigkeit (mind. 20 Aufgaben)", check: (s) => s.stats.totalPracticed >= 20 && (s.stats.totalCorrect / s.stats.totalPracticed) >= 0.9 },
 ];
 
 const MOORHUHN_PLAYS_STORAGE_KEY = "word_galaxy_moorhuhn_plays";
@@ -195,6 +195,7 @@ const state = {
   _lastPerfect: false,
   germanVoice: null,
   audioCtx: null,
+  currentView: "home",
   savedScrollY: 0,
   tetris: {
     active: false,
@@ -399,7 +400,7 @@ async function initialize() {
   state.streak = loadStreak();
   state.achievements = loadAchievements();
   updateCoinDisplay();
-  applyDarkMode(loadDarkMode());
+  applyTheme(loadLightMode());
   updateTetrisPlayDisplay();
   updateSnakePlaysDisplay();
   updateMoorhuhnPlaysDisplay();
@@ -446,10 +447,11 @@ async function initialize() {
 }
 
 function bindEvents() {
+  document.getElementById('goToSetupBtn').addEventListener('click', () => navigateTo('setup'));
   els.startBtn.addEventListener("click", startQuiz);
   els.darkToggle.addEventListener("click", () => {
-    const isDark = document.body.classList.contains("dark-mode");
-    applyDarkMode(!isDark);
+    const isLight = document.body.classList.contains("light-mode");
+    applyTheme(!isLight);
   });
   els.modeSelect.addEventListener("change", () => {
     state.quizMode = els.modeSelect.value;
@@ -1115,12 +1117,23 @@ function renderCurrentQuizState() {
     els.taskDisplay.classList.add("hidden");
     els.letterSlots.classList.remove("hidden");
     els.letterSlots.innerHTML = "";
+    let slotIndex = 0;
     for (const char of currentItem.answer) {
       if (char === " ") continue;
       const bubble = document.createElement("span");
       bubble.className = "slot";
+      bubble.style.opacity = "0";
+      bubble.style.transform = "scale(0.5)";
+      bubble.style.transition = `all 0.2s ease ${slotIndex * 0.03}s`;
       els.letterSlots.appendChild(bubble);
+      slotIndex++;
     }
+    requestAnimationFrame(() => {
+      for (const slot of els.letterSlots.querySelectorAll(".slot")) {
+        slot.style.opacity = "1";
+        slot.style.transform = "scale(1)";
+      }
+    });
   }
 
   els.wordInput.value = "";
@@ -1339,7 +1352,11 @@ function finishQuiz() {
   renderMistakes();
   setPanelVisibility({ setup: false, quiz: false, result: true });
 
-  if (percent >= 80) {
+  if (percent === 100) {
+    spawnCelebration();
+    setTimeout(() => spawnCelebration(), 300);
+    setTimeout(() => spawnCelebration(), 600);
+  } else if (percent >= 80) {
     spawnCelebration();
   }
 }
@@ -1507,12 +1524,24 @@ function checkCorrections() {
     const bonus = 2;
     addCoins(bonus);
     state.correctionBonusGiven = true;
-    setFeedback(els.correctionFeedback, `Alles korrigiert! +${bonus} Bonus-Münzen.`, "ok");
     spawnCelebration();
-    return;
+    playSfx("quizCorrect");
   }
 
-  setFeedback(els.correctionFeedback, "Alle Korrekturen sind schon erledigt.", "ok");
+  // Collapse correction section and show success
+  const block = els.mistakesBlock;
+  block.style.maxHeight = block.scrollHeight + "px";
+  block.style.transition = "max-height 0.4s ease, opacity 0.3s ease";
+  requestAnimationFrame(() => {
+    block.style.maxHeight = "0";
+    block.style.opacity = "0";
+    block.style.overflow = "hidden";
+  });
+  setTimeout(() => {
+    block.innerHTML = '<div class="correction-success">Alle Korrekturen erledigt! +2 Bonus-Muenzen</div>';
+    block.style.maxHeight = "none";
+    block.style.opacity = "1";
+  }, 400);
 }
 
 function resetToSetup() {
@@ -1522,24 +1551,34 @@ function resetToSetup() {
   setSetupFeedback();
 }
 
-function setPanelVisibility({ setup, quiz, result }) {
-  const panels = [
-    { el: els.setupPanel, show: setup },
-    { el: els.quizPanel, show: quiz },
-    { el: els.resultPanel, show: result },
-  ];
-  for (const { el, show } of panels) {
-    if (show) {
-      el.classList.remove("hidden");
-      el.classList.add("panel-enter");
-      void el.offsetHeight;
-      el.classList.add("panel-visible");
-      el.classList.remove("panel-enter");
-    } else {
-      el.classList.remove("panel-visible");
-      el.classList.add("hidden");
-    }
+const VIEWS = ["home", "setup", "quiz", "result", "arcade"];
+
+function navigateTo(viewName) {
+  if (!VIEWS.includes(viewName)) return;
+  const current = document.querySelector('.view.view-active');
+  const next = document.querySelector(`.view[data-view="${viewName}"]`);
+  if (!next || next === current) return;
+
+  state.currentView = viewName;
+  window.scrollTo({ top: 0 });
+
+  if (current) {
+    current.classList.add('view-exit');
+    current.addEventListener('animationend', () => {
+      current.classList.remove('view-active', 'view-exit');
+    }, { once: true });
   }
+
+  next.classList.add('view-active', 'view-enter');
+  next.addEventListener('animationend', () => {
+    next.classList.remove('view-enter');
+  }, { once: true });
+}
+
+function setPanelVisibility({ setup, quiz, result }) {
+  if (quiz) navigateTo("quiz");
+  else if (result) navigateTo("result");
+  else if (setup) navigateTo("setup");
 }
 
 // ─── Coins & plays ───
@@ -1562,14 +1601,15 @@ function updateCoinDisplay() {
   els.moorhuhnCoins.textContent = `Münzen: ${state.coins}`;
 }
 
-function loadDarkMode() {
-  return window.localStorage.getItem(DARK_MODE_KEY) === "true";
+function loadLightMode() {
+  return window.localStorage.getItem(DARK_MODE_KEY) === "light";
 }
 
-function applyDarkMode(dark) {
-  document.body.classList.toggle("dark-mode", dark);
-  els.darkToggle.textContent = dark ? "\uD83C\uDF19" : "\u2600\uFE0F";
-  window.localStorage.setItem(DARK_MODE_KEY, String(dark));
+function applyTheme(light) {
+  document.body.classList.toggle("light-mode", light);
+  document.body.classList.remove("dark-mode");
+  els.darkToggle.textContent = light ? "\uD83C\uDF19" : "\u2600\uFE0F";
+  window.localStorage.setItem(DARK_MODE_KEY, light ? "light" : "dark");
 }
 
 // ─── Stats & Streak ───
