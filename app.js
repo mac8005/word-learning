@@ -7,7 +7,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 08:21";
+const BUILD_DATE = "2026-03-06 08:22";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -21,6 +21,21 @@ const TETRIS_HIGHSCORE_KEY = "word_galaxy_tetris_highscore";
 const SNAKE_HIGHSCORE_KEY = "word_galaxy_snake_highscore";
 const ERROR_HISTORY_KEY = "word_galaxy_error_history";
 const DARK_MODE_KEY = "word_galaxy_dark_mode";
+const STATS_KEY = "word_galaxy_stats";
+const STREAK_KEY = "word_galaxy_streak";
+const ACHIEVEMENTS_KEY = "word_galaxy_achievements";
+
+const ACHIEVEMENT_DEFS = [
+  { id: "first_perfect", icon: "\u{1F31F}", name: "Perfektionist", desc: "Erste fehlerfreie Mission", check: (s) => s._lastPerfect },
+  { id: "words_50", icon: "\u{1F4DA}", name: "Buecherwurm", desc: "50 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 50 },
+  { id: "words_100", icon: "\u{1F393}", name: "Wort-Meister", desc: "100 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 100 },
+  { id: "words_500", icon: "\u{1F3C6}", name: "Wort-Champion", desc: "500 Woerter geuebt", check: (s) => s.stats.totalPracticed >= 500 },
+  { id: "streak_3", icon: "\u{1F525}", name: "Fleissig", desc: "3 Tage am Stueck geuebt", check: (s) => s.streak.current >= 3 },
+  { id: "streak_7", icon: "\u{1F4AA}", name: "Unaufhaltsam", desc: "7 Tage am Stueck geuebt", check: (s) => s.streak.current >= 7 },
+  { id: "coins_50", icon: "\u{1F4B0}", name: "Sparschwein", desc: "50 Muenzen gesammelt", check: (s) => s.coins >= 50 },
+  { id: "coins_200", icon: "\u{1F3E6}", name: "Bankier", desc: "200 Muenzen insgesamt", check: (s) => s.coins >= 200 },
+  { id: "accuracy_90", icon: "\u{1F3AF}", name: "Scharfschuetze", desc: "90% Genauigkeit (mind. 20 Woerter)", check: (s) => s.stats.totalPracticed >= 20 && (s.stats.totalCorrect / s.stats.totalPracticed) >= 0.9 },
+];
 
 const MOORHUHN_PLAYS_STORAGE_KEY = "word_galaxy_moorhuhn_plays";
 const MOORHUHN_HIGHSCORE_KEY = "word_galaxy_moorhuhn_highscore";
@@ -174,6 +189,10 @@ const state = {
   snakeHighscore: 0,
   moorhuhnPlays: 0,
   moorhuhnHighscore: 0,
+  stats: { totalPracticed: 0, totalCorrect: 0 },
+  streak: { current: 0, best: 0, lastDate: "" },
+  achievements: [],
+  _lastPerfect: false,
   germanVoice: null,
   audioCtx: null,
   savedScrollY: 0,
@@ -287,6 +306,14 @@ const els = {
   playAgainBtn: document.getElementById("playAgainBtn"),
   coinCount: document.getElementById("coinCount"),
   darkToggle: document.getElementById("darkToggle"),
+  streakBadge: document.getElementById("streakBadge"),
+  streakCount: document.getElementById("streakCount"),
+  statTotalPracticed: document.getElementById("statTotalPracticed"),
+  statAccuracy: document.getElementById("statAccuracy"),
+  statCurrentStreak: document.getElementById("statCurrentStreak"),
+  statBestStreak: document.getElementById("statBestStreak"),
+  toastContainer: document.getElementById("toastContainer"),
+  badgeGallery: document.getElementById("badgeGallery"),
   buyTetrisPlaysBtn: document.getElementById("buyTetrisPlaysBtn"),
   openTetrisBtn: document.getElementById("openTetrisBtn"),
   tetrisPlays: document.getElementById("tetrisPlays"),
@@ -368,6 +395,9 @@ async function initialize() {
   state.snakeHighscore = loadSnakeHighscore();
   state.moorhuhnPlays = loadMoorhuhnPlays();
   state.moorhuhnHighscore = loadMoorhuhnHighscore();
+  state.stats = loadStats();
+  state.streak = loadStreak();
+  state.achievements = loadAchievements();
   updateCoinDisplay();
   applyDarkMode(loadDarkMode());
   updateTetrisPlayDisplay();
@@ -379,6 +409,8 @@ async function initialize() {
   updateTetrisStats();
   updateSnakeStats();
   updateMoorhuhnStats();
+  updateStatsDisplay();
+  renderBadgeGallery();
   bindEvents();
   setupSnakeEventListeners();
   setupMoorhuhnEventListeners();
@@ -1294,6 +1326,11 @@ function finishQuiz() {
   const earnedCoins = Math.round(20 * correctCount / total);
   addCoins(earnedCoins);
 
+  recordQuizStats(state.answers);
+  state._lastPerfect = state.answers.every((a) => a.correct);
+  checkAchievements();
+  state._lastPerfect = false;
+
   els.ratingLabel.textContent = rating;
   els.scoreLine.textContent = `${correctCount} / ${total} richtig (${percent}%)`;
   els.coinRewardLine.textContent = `+${earnedCoins} Münzen erhalten`;
@@ -1533,6 +1570,124 @@ function applyDarkMode(dark) {
   document.body.classList.toggle("dark-mode", dark);
   els.darkToggle.textContent = dark ? "\uD83C\uDF19" : "\u2600\uFE0F";
   window.localStorage.setItem(DARK_MODE_KEY, String(dark));
+}
+
+// ─── Stats & Streak ───
+
+function loadStats() {
+  try {
+    const raw = window.localStorage.getItem(STATS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { totalPracticed: 0, totalCorrect: 0 };
+}
+
+function saveStats() {
+  window.localStorage.setItem(STATS_KEY, JSON.stringify(state.stats));
+}
+
+function loadStreak() {
+  try {
+    const raw = window.localStorage.getItem(STREAK_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { current: 0, best: 0, lastDate: "" };
+}
+
+function saveStreak() {
+  window.localStorage.setItem(STREAK_KEY, JSON.stringify(state.streak));
+}
+
+function getTodayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function updateStreakForToday() {
+  const today = getTodayStr();
+  if (state.streak.lastDate === today) return;
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  if (state.streak.lastDate === yesterdayStr) {
+    state.streak.current += 1;
+  } else if (state.streak.lastDate !== today) {
+    state.streak.current = 1;
+  }
+  state.streak.lastDate = today;
+  if (state.streak.current > state.streak.best) {
+    state.streak.best = state.streak.current;
+  }
+  saveStreak();
+}
+
+function updateStatsDisplay() {
+  const s = state.stats;
+  const accuracy = s.totalPracticed > 0
+    ? Math.round((s.totalCorrect / s.totalPracticed) * 100)
+    : 0;
+  els.statTotalPracticed.textContent = String(s.totalPracticed);
+  els.statAccuracy.textContent = accuracy + "%";
+  els.statCurrentStreak.textContent = "\u{1F525} " + state.streak.current;
+  els.statBestStreak.textContent = "\u{2B50} " + state.streak.best;
+  els.streakCount.textContent = String(state.streak.current);
+}
+
+function recordQuizStats(answers) {
+  const correct = answers.filter((a) => a.correct).length;
+  state.stats.totalPracticed += answers.length;
+  state.stats.totalCorrect += correct;
+  saveStats();
+  updateStreakForToday();
+  updateStatsDisplay();
+}
+
+// ─── Achievements ───
+
+function loadAchievements() {
+  try {
+    const raw = window.localStorage.getItem(ACHIEVEMENTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function saveAchievements() {
+  window.localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(state.achievements));
+}
+
+function showToast(icon, text) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = icon + " " + text;
+  els.toastContainer.appendChild(toast);
+  setTimeout(() => toast.remove(), 3200);
+}
+
+function checkAchievements() {
+  for (const def of ACHIEVEMENT_DEFS) {
+    if (state.achievements.includes(def.id)) continue;
+    if (def.check(state)) {
+      state.achievements.push(def.id);
+      saveAchievements();
+      showToast(def.icon, def.name + " freigeschaltet!");
+      playSfx("buy");
+    }
+  }
+  renderBadgeGallery();
+}
+
+function renderBadgeGallery() {
+  els.badgeGallery.innerHTML = "";
+  for (const def of ACHIEVEMENT_DEFS) {
+    const unlocked = state.achievements.includes(def.id);
+    const tile = document.createElement("div");
+    tile.className = "badge-tile" + (unlocked ? "" : " locked");
+    tile.title = def.desc;
+    tile.innerHTML = '<span class="badge-icon">' + def.icon + '</span><span class="badge-name">' + escapeHtml(def.name) + '</span>';
+    els.badgeGallery.appendChild(tile);
+  }
 }
 
 function loadTetrisPlays() {
