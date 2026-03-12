@@ -49,6 +49,55 @@
         "Frühling",
         "Fuss"
       ]
+    },
+    {
+      "letter": "G",
+      "words": [
+        "Gabel",
+        "ganz",
+        "geben",
+        "Geburt",
+        "gehen",
+        "genug",
+        "gerade",
+        "gern",
+        "gestern",
+        "Gewitter",
+        "gelb",
+        "gibt",
+        "gefallen",
+        "Geheimnis",
+        "Geld",
+        "Gesicht",
+        "Glück",
+        "groß",
+        "Gans",
+        "gucken"
+      ]
+    },
+    {
+      "letter": "H",
+      "words": [
+        "Haare",
+        "haben",
+        "Hafen",
+        "hallo",
+        "halten",
+        "Hand",
+        "Hase",
+        "Heft",
+        "halb",
+        "heißen",
+        "heraus",
+        "herein",
+        "heute",
+        "Hexe",
+        "hier",
+        "hinter",
+        "hören",
+        "Hund",
+        "Hunger"
+      ]
     }
   ]
 }
