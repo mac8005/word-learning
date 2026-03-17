@@ -885,7 +885,7 @@ function updateTableCount() {
 }
 
 function applyModeUI() {
-  const isMath = state.quizMode === "math";
+  const isMath = isMathMode();
   els.wordSettings.classList.toggle("hidden", isMath);
   els.mathSettings.classList.toggle("hidden", !isMath);
   els.wordNote.classList.toggle("hidden", isMath);
@@ -906,7 +906,7 @@ function applyModeUI() {
 }
 
 function setSetupFeedback() {
-  if (state.quizMode === "math") {
+  if (isMathMode()) {
     setFeedback(els.quizFeedback, "Wähle Reihen und starte die Mission.", "ok");
   } else {
     setFeedback(els.quizFeedback, "Wähle ein Set und starte die Mission.", "ok");
@@ -914,7 +914,11 @@ function setSetupFeedback() {
 }
 
 function isMathMode() {
-  return state.quizMode === "math";
+  return state.quizMode === "math" || state.quizMode === "division";
+}
+
+function isDivisionMode() {
+  return state.quizMode === "division";
 }
 
 function modeNoun() {
@@ -1010,6 +1014,10 @@ function weightedSelect(pool, count, getKey) {
 function startQuiz() {
   state.quizMode = els.modeSelect.value;
   applyModeUI();
+  if (isDivisionMode()) {
+    startDivisionQuiz();
+    return;
+  }
   if (isMathMode()) {
     startMathQuiz();
     return;
@@ -1096,6 +1104,55 @@ function buildMathTasks(tables, count) {
   }
   if (!pool.length) return [];
   return weightedSelect(pool, count, (task) => task.a + "x" + task.b);
+}
+
+function startDivisionQuiz() {
+  const selectedTables = [...els.tablePicker.querySelectorAll(".lg-pill.selected")].map((p) =>
+    Number.parseInt(p.dataset.value ?? "0", 10)
+  ).filter((value) => Number.isFinite(value) && value > 0);
+
+  if (!selectedTables.length) {
+    setFeedback(els.quizFeedback, "Bitte mindestens eine Reihe auswählen.", "bad");
+    return;
+  }
+
+  const requestedSize = Number.parseInt(els.setSize.value, 10);
+  const tasks = buildDivisionTasks(selectedTables, requestedSize);
+  if (!tasks.length) {
+    setFeedback(els.quizFeedback, "Keine Aufgaben für diese Auswahl gefunden.", "bad");
+    return;
+  }
+
+  state.quizItems = tasks.map((task) => {
+    const dividend = task.a * task.b;
+    const displayText = `${dividend} ÷ ${task.a}`;
+    return {
+      type: "math",
+      prompt: `${dividend} : ${task.a}`,
+      answer: task.b,
+      displayText,
+      speakText: `${dividend} durch ${task.a}`,
+    };
+  });
+  state.answers = [];
+  state.currentIndex = 0;
+  state.quizActive = true;
+  state.correctionBonusGiven = false;
+
+  navigateTo("quiz");
+  renderCurrentQuizState();
+  speakCurrentItem();
+}
+
+function buildDivisionTasks(tables, count) {
+  const pool = [];
+  for (const table of tables) {
+    for (let factor = 0; factor <= 10; factor += 1) {
+      pool.push({ a: table, b: factor });
+    }
+  }
+  if (!pool.length) return [];
+  return weightedSelect(pool, count, (task) => (task.a * task.b) + "÷" + task.a);
 }
 
 function getWordPool(letterGroups) {
