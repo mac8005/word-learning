@@ -98,6 +98,55 @@
         "Hund",
         "Hunger"
       ]
+    },
+    {
+      "letter": "I",
+      "words": [
+        "ich",
+        "Idee",
+        "immer",
+        "ihm",
+        "ihr",
+        "ist",
+        "ihn",
+        "Igel",
+        "im",
+        "isst",
+        "in",
+        "Information",
+        "impfen",
+        "ins",
+        "Interesse",
+        "Insel",
+        "Inge",
+        "innen",
+        "Iglu"
+      ]
+    },
+    {
+      "letter": "J",
+      "words": [
+        "ja",
+        "Jahr",
+        "Januar",
+        "Juni",
+        "Juli",
+        "Junge",
+        "jeder",
+        "jedes",
+        "jetzt",
+        "jung",
+        "Jahreszeit",
+        "Jacke",
+        "jagen",
+        "Jeans",
+        "Joghurt",
+        "jemand",
+        "jubeln",
+        "Jaguar",
+        "Jubiläum",
+        "Juwel"
+      ]
     }
   ]
 }
