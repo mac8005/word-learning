@@ -8,7 +8,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-06-10 19:10";
+const BUILD_DATE = "2026-06-10 19:55";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -1442,18 +1442,29 @@ function findGermanVoiceNow() {
 function speakWordViaSynthesis(word) {
   if (!("speechSynthesis" in window)) return;
   findGermanVoiceNow();
-  if (!state.germanVoice) {
+  if (!state.germanVoice && !IS_IOS) {
     console.warn("[TTS] Keine deutsche Stimme gefunden – Speech Synthesis übersprungen (würde englischen Akzent verwenden)");
     return;
   }
-  console.log("[TTS] Verwende Speech Synthesis:", state.germanVoice.name);
-  window.speechSynthesis.cancel();
+  console.log("[TTS] Verwende Speech Synthesis:", state.germanVoice ? state.germanVoice.name : "Systemstimme (de-DE)");
+  const synth = window.speechSynthesis;
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = "de-DE";
-  utterance.voice = state.germanVoice;
+  if (state.germanVoice) utterance.voice = state.germanVoice;
   utterance.rate = SPEECH_RATE;
   utterance.pitch = 1.02;
-  window.speechSynthesis.speak(utterance);
+  // iOS WebKit verschluckt speak() direkt nach cancel() stillschweigend.
+  // Deshalb: nur abbrechen wenn wirklich etwas läuft, dann kurz warten.
+  if (synth.speaking || synth.pending) {
+    synth.cancel();
+    setTimeout(() => {
+      synth.resume();
+      synth.speak(utterance);
+    }, 150);
+  } else {
+    synth.resume();
+    synth.speak(utterance);
+  }
 }
 
 // ─── Public speak function ───
@@ -3050,12 +3061,24 @@ function ensureAudio() {
 // all subsequent playTone / music scheduling works reliably.
 function unlockAudioOnce() {
   const ctx = ensureAudio();
-  if (!ctx) return;
-  const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.connect(ctx.destination);
-  src.start(0);
+  if (ctx) {
+    const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  }
+  // iOS erlaubt Speech Synthesis erst nach einem speak() innerhalb einer
+  // echten Nutzergeste – hier mit stummer Utterance freischalten.
+  if ("speechSynthesis" in window) {
+    try {
+      const unlockUtterance = new SpeechSynthesisUtterance(" ");
+      unlockUtterance.volume = 0;
+      window.speechSynthesis.speak(unlockUtterance);
+    } catch (error) {
+      console.warn("[TTS] Unlock fehlgeschlagen:", error);
+    }
+  }
   // Only needs to run once
   document.removeEventListener("touchstart", unlockAudioOnce, true);
   document.removeEventListener("click", unlockAudioOnce, true);
