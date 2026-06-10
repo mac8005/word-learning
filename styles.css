@@ -2318,3 +2318,14 @@ body.light-mode .game-card-desc {
   .snake-stage { flex-direction: column; align-items: center; }
   .snake-dpad { gap: 0.15rem; flex-shrink: 0; }
 }
+
+/* ─── Diktat: Wort-Diff im Fehler-Labor ─── */
+.dw-ok {
+  color: var(--success);
+}
+
+.dw-wrong {
+  color: var(--error);
+  text-decoration: underline wavy;
+  text-underline-offset: 3px;
+}

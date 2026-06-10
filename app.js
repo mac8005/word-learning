@@ -1,4 +1,5 @@
 const WORDS_URL_CANDIDATES = ["words.json", "data/words.json"];
+const DIKTATE_URL_CANDIDATES = ["diktate.json", "data/diktate.json"];
 const COIN_STORAGE_KEY = "word_galaxy_coins";
 const TETRIS_PLAYS_STORAGE_KEY = "word_galaxy_tetris_plays";
 const TETRIS_PLAY_BUNDLE_COST = 20;
@@ -7,7 +8,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-03-06 09:52";
+const BUILD_DATE = "2026-06-10 19:10";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -176,6 +177,7 @@ const SNAKE_BASS = [
 const state = {
   wordBank: {},
   letterKeys: [],
+  diktate: [],
   quizMode: "words",
   quizItems: [],
   answers: [],
@@ -279,6 +281,11 @@ const els = {
   mathSettings: document.getElementById("mathSettings"),
   tablePicker: document.getElementById("tablePicker"),
   tableCount: document.getElementById("tableCount"),
+  diktatSettings: document.getElementById("diktatSettings"),
+  diktatPicker: document.getElementById("diktatPicker"),
+  diktatInfo: document.getElementById("diktatInfo"),
+  diktatNote: document.getElementById("diktatNote"),
+  setSizeField: document.getElementById("setSizeField"),
   selectAllTablesBtn: document.getElementById("selectAllTablesBtn"),
   selectNoTablesBtn: document.getElementById("selectNoTablesBtn"),
   quizPanel: document.getElementById("quizPanel"),
@@ -428,6 +435,14 @@ async function initialize() {
   els.startBtn.textContent = "Wörter laden...";
 
   try {
+    state.diktate = await loadDiktate();
+  } catch (error) {
+    console.warn(error);
+    state.diktate = [];
+  }
+  populateDiktatOptions();
+
+  try {
     state.wordBank = await loadWords();
     state.letterKeys = Object.keys(state.wordBank).sort((a, b) => a.localeCompare(b, "de-DE"));
     populateLetterGroupOptions();
@@ -502,6 +517,15 @@ function bindEvents() {
     if (!pill) return;
     pill.classList.toggle("selected");
     updateTableCount();
+  });
+  els.diktatPicker.addEventListener("click", (e) => {
+    const pill = e.target.closest(".lg-pill");
+    if (!pill) return;
+    for (const other of els.diktatPicker.querySelectorAll(".lg-pill")) {
+      other.classList.remove("selected");
+    }
+    pill.classList.add("selected");
+    updateDiktatInfo();
   });
   els.speakBtn.addEventListener("click", speakCurrentItem);
   els.nextBtn.addEventListener("click", submitCurrentAnswer);
@@ -829,6 +853,40 @@ function normalizeDoubleS(value) {
   return value.replaceAll("\u00DF", "ss").replaceAll("\u1E9E", "SS");
 }
 
+async function loadDiktate() {
+  for (const candidate of DIKTATE_URL_CANDIDATES) {
+    const response = await fetch(candidate);
+    if (!response.ok) {
+      continue;
+    }
+    const data = await response.json();
+    console.log(`[Diktate] Konfiguration geladen aus: ${candidate}`);
+    return normalizeDiktatConfig(data);
+  }
+  throw new Error(`Fehler beim Laden der Diktat-Datei (${DIKTATE_URL_CANDIDATES.join(", ")})`);
+}
+
+function normalizeDiktatConfig(data) {
+  const diktate = [];
+  if (!Array.isArray(data?.diktate)) return diktate;
+  for (const entry of data.diktate) {
+    const title = String(entry?.title ?? "").trim();
+    const sentences = Array.isArray(entry?.sentences)
+      ? entry.sentences.map((s) => normalizeDiktatText(String(s ?? ""))).filter(Boolean)
+      : [];
+    if (!title || !sentences.length) continue;
+    diktate.push({ id: String(entry?.id ?? title).trim(), title, sentences });
+  }
+  return diktate;
+}
+
+function normalizeDiktatText(value) {
+  return normalizeDoubleS(value)
+    .replace(/[\u2018\u2019\u00B4`]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function populateLetterGroupOptions() {
   els.letterGroupPicker.innerHTML = "";
   els.letterGroupPicker.classList.remove("loading");
@@ -884,20 +942,64 @@ function updateTableCount() {
   }
 }
 
+function populateDiktatOptions() {
+  els.diktatPicker.innerHTML = "";
+  els.diktatPicker.classList.remove("loading");
+
+  if (!state.diktate.length) {
+    els.diktatPicker.innerHTML = '<span class="lg-placeholder">Keine Diktate gefunden</span>';
+    updateDiktatInfo();
+    return;
+  }
+
+  state.diktate.forEach((diktat, index) => {
+    const pill = document.createElement("span");
+    pill.className = index === 0 ? "lg-pill selected" : "lg-pill";
+    pill.dataset.value = diktat.id;
+    pill.textContent = diktat.title;
+    els.diktatPicker.appendChild(pill);
+  });
+
+  updateDiktatInfo();
+}
+
+function updateDiktatInfo() {
+  const diktat = getSelectedDiktat();
+  els.diktatInfo.textContent = diktat ? `${diktat.sentences.length} Sätze` : "Kein Diktat ausgewählt";
+}
+
+function getSelectedDiktat() {
+  const pill = els.diktatPicker.querySelector(".lg-pill.selected");
+  if (!pill) return null;
+  return state.diktate.find((d) => d.id === pill.dataset.value) ?? null;
+}
+
 function applyModeUI() {
   const isMath = isMathMode();
-  els.wordSettings.classList.toggle("hidden", isMath);
+  const isDiktat = isDiktatMode();
+  els.wordSettings.classList.toggle("hidden", isMath || isDiktat);
   els.mathSettings.classList.toggle("hidden", !isMath);
-  els.wordNote.classList.toggle("hidden", isMath);
+  els.diktatSettings.classList.toggle("hidden", !isDiktat);
+  els.setSizeField.classList.toggle("hidden", isDiktat);
+  els.wordNote.classList.toggle("hidden", isMath || isDiktat);
   els.mathNote.classList.toggle("hidden", !isMath);
+  els.diktatNote.classList.toggle("hidden", !isDiktat);
   els.setSizeLabel.textContent = isMath ? "Aufgaben pro Mission" : "Wörter pro Mission";
-  els.quizTitle.textContent = isMath ? "Löse die Aufgabe" : "Schreibe, was du hörst";
-  els.speakBtn.textContent = isMath ? "Aufgabe vorlesen" : "Wort vorlesen";
-  els.nextBtn.textContent = isMath ? "Nächste Aufgabe" : "Nächstes Wort";
-  els.wordInput.placeholder = isMath ? "Antwort eingeben" : "Wort hier eingeben";
+  els.quizTitle.textContent = isMath
+    ? "Löse die Aufgabe"
+    : isDiktat
+      ? "Schreibe den Satz"
+      : "Schreibe, was du hörst";
+  els.speakBtn.textContent = isMath ? "Aufgabe vorlesen" : isDiktat ? "Satz vorlesen" : "Wort vorlesen";
+  els.nextBtn.textContent = isMath ? "Nächste Aufgabe" : isDiktat ? "Nächster Satz" : "Nächstes Wort";
+  els.wordInput.placeholder = isMath
+    ? "Antwort eingeben"
+    : isDiktat
+      ? "Satz hier eingeben"
+      : "Wort hier eingeben";
   els.wordInput.setAttribute(
     "aria-label",
-    isMath ? "Antwort eingeben" : "Gesprochenes Wort eingeben"
+    isMath ? "Antwort eingeben" : isDiktat ? "Gesprochenen Satz eingeben" : "Gesprochenes Wort eingeben"
   );
   for (const option of els.setSize.querySelectorAll("option")) {
     const count = option.value;
@@ -908,6 +1010,8 @@ function applyModeUI() {
 function setSetupFeedback() {
   if (isMathMode()) {
     setFeedback(els.quizFeedback, "Wähle Reihen und starte die Mission.", "ok");
+  } else if (isDiktatMode()) {
+    setFeedback(els.quizFeedback, "Wähle ein Diktat und starte die Mission.", "ok");
   } else {
     setFeedback(els.quizFeedback, "Wähle ein Set und starte die Mission.", "ok");
   }
@@ -921,12 +1025,16 @@ function isDivisionMode() {
   return state.quizMode === "division";
 }
 
+function isDiktatMode() {
+  return state.quizMode === "diktat";
+}
+
 function modeNoun() {
-  return isMathMode() ? "Aufgabe" : "Wort";
+  return isMathMode() ? "Aufgabe" : isDiktatMode() ? "Satz" : "Wort";
 }
 
 function modeNounPlural() {
-  return isMathMode() ? "Aufgaben" : "Wörter";
+  return isMathMode() ? "Aufgaben" : isDiktatMode() ? "Sätze" : "Wörter";
 }
 
 // ─── Error History / Spaced Repetition ───
@@ -1014,6 +1122,10 @@ function weightedSelect(pool, count, getKey) {
 function startQuiz() {
   state.quizMode = els.modeSelect.value;
   applyModeUI();
+  if (isDiktatMode()) {
+    startDiktatQuiz();
+    return;
+  }
   if (isDivisionMode()) {
     startDivisionQuiz();
     return;
@@ -1155,6 +1267,31 @@ function buildDivisionTasks(tables, count) {
   return weightedSelect(pool, count, (task) => (task.a * task.b) + "÷" + task.a);
 }
 
+function startDiktatQuiz() {
+  const diktat = getSelectedDiktat();
+  if (!diktat) {
+    setFeedback(els.quizFeedback, "Bitte zuerst ein Diktat auswählen.", "bad");
+    return;
+  }
+
+  state.quizItems = diktat.sentences.map((sentence) => ({
+    type: "diktat",
+    prompt: sentence,
+    answer: sentence,
+    displayText: `${sentence.split(" ").length} Wörter`,
+    speakText: sentence,
+  }));
+  state.answers = [];
+  state.currentIndex = 0;
+  state.quizActive = true;
+  state.correctionBonusGiven = false;
+
+  navigateTo("quiz");
+  els.quizTitle.textContent = `Diktat: ${diktat.title}`;
+  renderCurrentQuizState();
+  speakCurrentItem();
+}
+
 function getWordPool(letterGroups) {
   const allWords = [];
   for (const letter of letterGroups) {
@@ -1179,6 +1316,26 @@ function renderCurrentQuizState() {
     els.taskDisplay.classList.remove("hidden");
     els.letterSlots.classList.add("hidden");
     els.letterSlots.innerHTML = "";
+  } else if (isDiktatMode()) {
+    els.taskDisplay.textContent = currentItem.displayText ?? "";
+    els.taskDisplay.classList.remove("hidden");
+    els.letterSlots.classList.remove("hidden");
+    els.letterSlots.innerHTML = "";
+    currentItem.answer.split(" ").forEach((word, slotIndex) => {
+      const bubble = document.createElement("span");
+      bubble.className = "slot";
+      bubble.style.width = `${Math.max(2.2, word.length * 0.7)}rem`;
+      bubble.style.opacity = "0";
+      bubble.style.transform = "scale(0.5)";
+      bubble.style.transition = `all 0.2s ease ${slotIndex * 0.03}s`;
+      els.letterSlots.appendChild(bubble);
+    });
+    requestAnimationFrame(() => {
+      for (const slot of els.letterSlots.querySelectorAll(".slot")) {
+        slot.style.opacity = "1";
+        slot.style.transform = "scale(1)";
+      }
+    });
   } else {
     els.taskDisplay.classList.add("hidden");
     els.letterSlots.classList.remove("hidden");
@@ -1206,6 +1363,8 @@ function renderCurrentQuizState() {
   els.wordInput.focus();
   if (isMathMode()) {
     setFeedback(els.quizFeedback, "Hören und rechnen. Die Aufgabe wird angezeigt.", "ok");
+  } else if (isDiktatMode()) {
+    setFeedback(els.quizFeedback, "Höre den Satz und schreibe ihn ganz auf.", "ok");
   } else {
     setFeedback(els.quizFeedback, "Hören und tippen. Das Wort wird nicht angezeigt.", "ok");
   }
@@ -1216,7 +1375,9 @@ function renderCurrentQuizState() {
 
 function handleSlotFill() {
   const slots = els.letterSlots.querySelectorAll(".slot");
-  const typed = els.wordInput.value.length;
+  const typed = isDiktatMode()
+    ? els.wordInput.value.split(/\s+/).filter(Boolean).length
+    : els.wordInput.value.length;
   slots.forEach((slot, i) => {
     slot.classList.toggle("filled", i < typed);
   });
@@ -1353,6 +1514,20 @@ function submitCurrentAnswer() {
       prompt: currentItem.prompt,
     });
     recordResult(currentItem.prompt.replace(/ x /g, "x"), correct);
+  } else if (isDiktatMode()) {
+    const userInput = normalizeDiktatText(rawInput);
+    const target = currentItem.answer;
+    const correct = userInput === target;
+    const caseOnlyError =
+      !correct && userInput.localeCompare(target, "de-DE", { sensitivity: "base" }) === 0;
+
+    state.answers.push({
+      target,
+      userInput,
+      correct,
+      caseOnlyError,
+      prompt: currentItem.prompt,
+    });
   } else {
     const userInput = normalizeDoubleS(rawInput);
     const target = currentItem.answer;
@@ -1482,22 +1657,45 @@ function renderMistakes() {
     let detail = "";
     if (isMathMode()) {
       detail = "Die Rechnung ist falsch.";
+    } else if (isDiktatMode()) {
+      const userCount = mistake.userInput.split(" ").filter(Boolean).length;
+      const targetCount = mistake.target.split(" ").length;
+      if (mistake.caseOnlyError) {
+        detail = "Buchstaben stimmen, aber Gross-/Kleinschreibung ist falsch.";
+      } else if (userCount < targetCount) {
+        detail = `Da fehlt etwas: Der Satz hat ${targetCount} Wörter.`;
+      } else if (userCount > targetCount) {
+        detail = `Dein Satz hat zu viele Wörter (${userCount} statt ${targetCount}).`;
+      } else {
+        detail = "Schau dir die rot markierten Wörter genau an.";
+      }
     } else {
       detail = mistake.caseOnlyError
         ? "Buchstaben stimmen, aber Gross-/Kleinschreibung ist falsch."
         : "Die Schreibweise ist falsch.";
     }
     const wrongLabel = isMathMode() ? "Falsche Antwort vorlesen" : "Falsche Eingabe vorlesen";
-    const correctLabel = isMathMode() ? "Aufgabe vorlesen" : "Richtiges Wort vorlesen";
-    const inputPlaceholder = isMathMode() ? "Korrekte Antwort eingeben" : "Korrektes Wort eingeben";
+    const correctLabel = isMathMode()
+      ? "Aufgabe vorlesen"
+      : isDiktatMode()
+        ? "Richtigen Satz vorlesen"
+        : "Richtiges Wort vorlesen";
+    const inputPlaceholder = isMathMode()
+      ? "Korrekte Antwort eingeben"
+      : isDiktatMode()
+        ? "Korrekten Satz eingeben"
+        : "Korrektes Wort eingeben";
     const promptLine = isMathMode()
       ? `<p class="mistake-meta">Aufgabe: <strong>${escapeHtml(mistake.prompt ?? "")}</strong></p>`
       : "";
+    const userInputHtml = isDiktatMode()
+      ? diktatWordDiffHtml(mistake.userInput, mistake.target)
+      : escapeHtml(mistake.userInput);
 
     row.innerHTML = `
       <div class="mistake-title">Nochmal versuchen</div>
       ${promptLine}
-      <p class="mistake-meta">Deine ${isMathMode() ? "Antwort" : "Eingabe"}: <strong>${escapeHtml(mistake.userInput)}</strong> <button type="button" class="btn secondary speak-wrong">${wrongLabel}</button></p>
+      <p class="mistake-meta">Deine ${isMathMode() ? "Antwort" : "Eingabe"}: <strong>${userInputHtml}</strong> <button type="button" class="btn secondary speak-wrong">${wrongLabel}</button></p>
       <p class="mistake-meta">${detail}</p>
       <button type="button" class="btn secondary retry-audio">${correctLabel}</button>
       <input type="text" class="correction-input" placeholder="${inputPlaceholder}" />
@@ -1574,7 +1772,7 @@ function checkCorrections() {
       row.classList.add("corrected");
       fixedCount += 1;
     } else {
-      const proposed = normalizeDoubleS(rawValue);
+      const proposed = isDiktatMode() ? normalizeDiktatText(rawValue) : normalizeDoubleS(rawValue);
       if (proposed !== target) {
         console.log(`[Korrektur] Richtiges Wort: ${target}`);
         allCorrectNow = false;
@@ -1625,6 +1823,41 @@ function resetToSetup() {
   navigateTo("setup");
   applyModeUI();
   setSetupFeedback();
+}
+
+// Markiert die Wörter der Eingabe, die nicht zum Zielsatz passen (LCS-Abgleich),
+// ohne die richtige Schreibweise zu verraten.
+function diktatWordDiffHtml(userInput, target) {
+  const userWords = userInput.split(" ").filter(Boolean);
+  const targetWords = target.split(" ");
+  const n = userWords.length;
+  const m = targetWords.length;
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i -= 1) {
+    for (let j = m - 1; j >= 0; j -= 1) {
+      dp[i][j] =
+        userWords[i] === targetWords[j]
+          ? dp[i + 1][j + 1] + 1
+          : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const matched = new Array(n).fill(false);
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (userWords[i] === targetWords[j]) {
+      matched[i] = true;
+      i += 1;
+      j += 1;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      i += 1;
+    } else {
+      j += 1;
+    }
+  }
+  return userWords
+    .map((word, idx) => `<span class="${matched[idx] ? "dw-ok" : "dw-wrong"}">${escapeHtml(word)}</span>`)
+    .join(" ");
 }
 
 // ─── Starfield & Home Stats ───

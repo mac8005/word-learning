@@ -10,6 +10,7 @@ A fun, gamified German word-learning app for primary school children (ages 7-10)
 
 ### Word Training
 - **Dictation mode** — hear a German word via text-to-speech, type it correctly
+- **Diktat mode** — hear whole sentences of a school dictation, write them down; wrong words are highlighted without revealing the correct spelling
 - **Math mode** — practice multiplication tables (1x to 10x)
 - **Letter groups** — pick which letter groups to practice
 - **Spaced repetition** — words you get wrong appear more often
@@ -43,6 +44,7 @@ Single-page app with no build system or dependencies:
 | `styles.css` | All styling, dark mode, responsive breakpoints |
 | `app.js` | All logic (~4800 lines): quiz engine, 3 games, audio, stats |
 | `words.json` | Word bank organized by letter groups |
+| `diktate.json` | Dictation texts (title + sentences) for Diktat mode |
 
 **Key patterns:**
 - Global `state` object holds all app state

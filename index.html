@@ -97,9 +97,10 @@
                   <option value="words" selected>Wörter</option>
                   <option value="math">Malrechnen</option>
                   <option value="division">Durchrechnen</option>
+                  <option value="diktat">Diktat</option>
                 </select>
               </label>
-              <div class="field-group">
+              <div class="field-group" id="setSizeField">
                 <span id="setSizeLabel">Wörter pro Mission</span>
                 <select id="setSize">
                   <option value="5">5 Wörter</option>
@@ -133,9 +134,17 @@
               <div class="letter-group-picker" id="tablePicker"></div>
               <span class="lg-count" id="tableCount"></span>
             </div>
+            <div class="field-group hidden" id="diktatSettings">
+              <span class="label-row">Diktat auswählen</span>
+              <div class="letter-group-picker" id="diktatPicker">
+                <span class="lg-placeholder">Diktate laden…</span>
+              </div>
+              <span class="lg-count" id="diktatInfo"></span>
+            </div>
             <button id="startBtn" class="btn primary">Mission starten</button>
             <p class="small-note" id="wordNote">Tipp: Gross- und Kleinschreibung wird genau geprüft.</p>
             <p class="small-note hidden" id="mathNote">Tipp: Wähle eine oder mehrere Reihen und rechne mit Zahlen von 0 bis 10.</p>
+            <p class="small-note hidden" id="diktatNote">Tipp: Höre den ganzen Satz an und schreibe ihn genau auf. Punkt am Ende nicht vergessen!</p>
           </section>
         </div>
 
