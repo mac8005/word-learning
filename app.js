@@ -8,7 +8,7 @@ const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const BASE_DROP_MS = 700;
 const SPEECH_RATE = 0.5;
-const BUILD_DATE = "2026-06-10 19:55";
+const BUILD_DATE = "2026-06-10 20:05";
 const TABLE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const SNAKE_PLAYS_STORAGE_KEY = "word_galaxy_snake_plays";
@@ -965,7 +965,9 @@ function populateDiktatOptions() {
 
 function updateDiktatInfo() {
   const diktat = getSelectedDiktat();
-  els.diktatInfo.textContent = diktat ? `${diktat.sentences.length} Sätze` : "Kein Diktat ausgewählt";
+  els.diktatInfo.textContent = diktat
+    ? `Titel + ${diktat.sentences.length} Sätze`
+    : "Kein Diktat ausgewählt";
 }
 
 function getSelectedDiktat() {
@@ -1274,13 +1276,23 @@ function startDiktatQuiz() {
     return;
   }
 
-  state.quizItems = diktat.sentences.map((sentence) => ({
-    type: "diktat",
-    prompt: sentence,
-    answer: sentence,
-    displayText: `${sentence.split(" ").length} Wörter`,
-    speakText: sentence,
-  }));
+  const title = normalizeDiktatText(diktat.title);
+  state.quizItems = [
+    {
+      type: "diktat",
+      prompt: title,
+      answer: title,
+      displayText: `Titel · ${title.split(" ").length} Wörter`,
+      speakText: title,
+    },
+    ...diktat.sentences.map((sentence) => ({
+      type: "diktat",
+      prompt: sentence,
+      answer: sentence,
+      displayText: `${sentence.split(" ").length} Wörter`,
+      speakText: sentence,
+    })),
+  ];
   state.answers = [];
   state.currentIndex = 0;
   state.quizActive = true;
